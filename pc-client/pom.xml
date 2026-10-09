@@ -20,6 +20,11 @@
             <artifactId>javafx-controls</artifactId>
             <version>${javafx.version}</version>
         </dependency>
+        <dependency>
+            <groupId>ctrlx</groupId>
+            <artifactId>network-server</artifactId>
+            <version>1.0.0</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -34,7 +39,7 @@
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
                 <configuration>
-                    <mainClass>Dashboard</mainClass>
+                    <mainClass>com.ctrlx.desktop.Dashboard</mainClass>
                 </configuration>
             </plugin>
         </plugins>
