@@ -1,6 +1,8 @@
 **/out/
 **/target/
 **/build/
+.gradle/
+**/.gradle/
 .idea/
 .vscode/
 *.class
