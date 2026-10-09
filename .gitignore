@@ -6,3 +6,7 @@
 .idea/
 .vscode/
 *.class
+local.properties
+server.token
+*.token
+paired_devices.json

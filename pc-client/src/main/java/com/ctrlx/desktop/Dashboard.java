@@ -1,6 +1,10 @@
 package com.ctrlx.desktop;
 
 import com.ctrlx.server.Server;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -8,7 +12,9 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -35,131 +41,148 @@ public class Dashboard extends Application {
     private volatile boolean connected;
     private final Object sendLock = new Object();
 
-    private Label connectionStatus;
-    private Label responseStatus;
+    private Label statusBadge;
+    private Label pcNameLabel;
+    private Label ipValueLabel;
+    private Label activePinLabel;
+
+    private VBox devicesContainer;
+    private Label noDevicesLabel;
     private Label clientsValue;
     private Label uptimeValue;
     private Label pairedValue;
-    private Label ipValue;
 
-    private VBox pairingCard;
+    private VBox pairingAlertCard;
     private Label pairingDeviceLabel;
-    private Label pairingPinLabel;
+    private Label pairingPinAlertLabel;
 
     @Override
     public void start(Stage stage) {
-        // Auto-start embedded network server immediately on launch
         startEmbeddedServerIfNeeded();
 
+        // Title Header
         Label title = new Label("CTRLX");
-        title.setStyle("-fx-font-size: 32px; -fx-font-weight: bold;");
+        title.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: white;");
 
-        Label subtitle = new Label("PC REMOTE RECEIVER & DASHBOARD");
-        subtitle.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;");
+        Label subtitle = new Label("PC REMOTE RECEIVER");
+        subtitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #64748b; -fx-letter-spacing: 1px;");
 
-        // PC Host & Network Card
-        Label serverTitle = new Label("RECEIVER STATUS");
-        serverTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
+        statusBadge = new Label("● READY TO CONNECT");
+        statusBadge.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 12; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
 
-        String localIp = getLocalWifiIp();
-        ipValue = new Label("Wi-Fi IP: " + localIp + " (Port 6060)");
-        ipValue.setStyle("-fx-font-size: 14px; -fx-text-fill: #38bdf8; -fx-font-weight: bold;");
+        HBox header = new HBox(
+                new VBox(2, title, subtitle),
+                createSpacer(),
+                statusBadge);
+        header.setAlignment(Pos.CENTER_LEFT);
 
-        connectionStatus = new Label("ONLINE");
-        connectionStatus.setTextFill(Color.web("#4ade80"));
-        connectionStatus.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
+        // PC Info & Security Cards (Monect-style grid)
+        String hostName = getHostComputerName();
+        String wifiIp = getLocalWifiIp();
+        String initialPin = Server.pairingManager.getOrCreateActivePin();
 
-        responseStatus = new Label("Server active and broadcasting discovery beacon.");
-        responseStatus.setWrapText(true);
-        responseStatus.setStyle("-fx-text-fill: #cbd5e1; -fx-font-size: 12px;");
+        // Card 1: PC Identity
+        Label pcTitle = new Label("COMPUTER NAME");
+        pcTitle.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #94a3b8;");
+        pcNameLabel = new Label(hostName);
+        pcNameLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #f8fafc;");
+        VBox pcCard = new VBox(4, pcTitle, pcNameLabel);
+        styleCard(pcCard);
 
-        Button refreshButton = new Button("Refresh Stats");
-        refreshButton.setStyle("-fx-background-color: #334155; -fx-text-fill: #f8fafc;");
-        refreshButton.setOnAction(e -> requestStats());
+        // Card 2: Wi-Fi IP Address
+        Label ipTitle = new Label("WI-FI IP ADDRESS");
+        ipTitle.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #94a3b8;");
+        ipValueLabel = new Label(wifiIp + " : 6060");
+        ipValueLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #38bdf8;");
+        VBox ipCard = new VBox(4, ipTitle, ipValueLabel);
+        styleCard(ipCard);
 
-        HBox topStatusRow = new HBox(12, connectionStatus, refreshButton);
-        topStatusRow.setAlignment(Pos.CENTER_LEFT);
+        // Card 3: Security PIN
+        Label pinTitle = new Label("PAIRING PIN CODE");
+        pinTitle.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #94a3b8;");
+        activePinLabel = new Label(initialPin);
+        activePinLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #a78bfa; -fx-letter-spacing: 2px;");
 
-        VBox statusCard = new VBox(10, serverTitle, ipValue, topStatusRow, responseStatus);
+        Button refreshPinBtn = new Button("↻");
+        refreshPinBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #94a3b8; -fx-font-size: 14px; -fx-cursor: hand;");
+        refreshPinBtn.setOnAction(e -> {
+            Server.pairingManager.resetActivePin();
+            activePinLabel.setText(Server.pairingManager.getOrCreateActivePin());
+        });
 
-        // Prominent Phone Pairing Request Card
-        Label pairingTitle = new Label("PHONE PAIRING REQUEST");
-        pairingTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #38bdf8;");
+        HBox pinRow = new HBox(8, activePinLabel, refreshPinBtn);
+        pinRow.setAlignment(Pos.CENTER_LEFT);
+        VBox pinCard = new VBox(4, pinTitle, pinRow);
+        styleCard(pinCard);
+
+        HBox infoCardsRow = new HBox(12, pcCard, ipCard, pinCard);
+        HBox.setHgrow(pcCard, Priority.ALWAYS);
+        HBox.setHgrow(ipCard, Priority.ALWAYS);
+        HBox.setHgrow(pinCard, Priority.ALWAYS);
+
+        // Prominent Pairing Alert Card (glowing when pairing is initiated)
+        Label alertHeading = new Label("NEW DEVICE PAIRING REQUEST");
+        alertHeading.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #38bdf8;");
 
         pairingDeviceLabel = new Label("Device: Android Phone");
-        pairingDeviceLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #f1f5f9;");
+        pairingDeviceLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #e2e8f0;");
 
-        pairingPinLabel = new Label("------");
-        pairingPinLabel.setStyle("-fx-font-size: 44px; -fx-font-weight: bold; -fx-text-fill: #38bdf8; -fx-alignment: center;");
+        pairingPinAlertLabel = new Label("------");
+        pairingPinAlertLabel.setStyle("-fx-font-size: 40px; -fx-font-weight: bold; -fx-text-fill: #38bdf8; -fx-letter-spacing: 4px;");
 
-        Label pairingInstruction = new Label("Enter this 6-digit PIN on your phone to complete pairing (Expires in 60s)");
-        pairingInstruction.setStyle("-fx-font-size: 12px; -fx-text-fill: #94a3b8;");
-        pairingInstruction.setWrapText(true);
+        Label alertInstruct = new Label("Enter this 6-digit PIN on your phone to pair. Expires in 60s.");
+        alertInstruct.setStyle("-fx-font-size: 12px; -fx-text-fill: #94a3b8;");
 
-        pairingCard = new VBox(8, pairingTitle, pairingDeviceLabel, pairingPinLabel, pairingInstruction);
-        pairingCard.setPadding(new Insets(18));
-        pairingCard.setStyle(
-                "-fx-background-color: #1e1b4b;" +
-                "-fx-border-color: #6366f1;" +
-                "-fx-border-width: 2px;" +
-                "-fx-border-radius: 12;" +
-                "-fx-background-radius: 12;");
-        pairingCard.setVisible(false);
-        pairingCard.setManaged(false);
+        pairingAlertCard = new VBox(6, alertHeading, pairingDeviceLabel, pairingPinAlertLabel, alertInstruct);
+        pairingAlertCard.setPadding(new Insets(16));
+        pairingAlertCard.setStyle("-fx-background-color: #1e1b4b; -fx-border-color: #6366f1; -fx-border-width: 2px; -fx-border-radius: 12; -fx-background-radius: 12;");
+        pairingAlertCard.setVisible(false);
+        pairingAlertCard.setManaged(false);
 
-        // Statistics Card
-        clientsValue = new Label("—");
-        uptimeValue = new Label("—");
-        pairedValue = new Label("—");
+        // Connected Devices Section (Monect style)
+        Label devSectionTitle = new Label("CONNECTED DEVICES");
+        devSectionTitle.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #64748b; -fx-letter-spacing: 1px;");
 
-        clientsValue.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;");
-        uptimeValue.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;");
-        pairedValue.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;");
+        devicesContainer = new VBox(8);
+        noDevicesLabel = new Label("No devices connected. Open the CTRLX app on your phone and tap this PC.");
+        noDevicesLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 13px; -fx-padding: 12;");
+        devicesContainer.getChildren().add(noDevicesLabel);
 
-        VBox statsCard = new VBox(
-                12,
-                new Label("CONNECTION STATISTICS"),
-                new HBox(
-                        24,
-                        new VBox(6, new Label("Connected Clients"), clientsValue),
-                        new VBox(6, new Label("Paired Devices"), pairedValue),
-                        new VBox(6, new Label("Server Uptime"), uptimeValue)));
+        VBox devicesSection = new VBox(10, devSectionTitle, devicesContainer);
+        devicesSection.setPadding(new Insets(16));
+        styleCard(devicesSection);
 
-        for (VBox card : new VBox[] { statusCard, statsCard }) {
-            card.setPadding(new Insets(18));
-            card.setStyle(
-                    "-fx-background-color: #1e293b;" +
-                    "-fx-background-radius: 12;");
-        }
+        // Footer Statistics
+        clientsValue = new Label("0");
+        uptimeValue = new Label("00:00:00");
+        pairedValue = new Label(String.valueOf(Server.pairingManager.getPairedCount()));
+
+        clientsValue.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;");
+        uptimeValue.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;");
+        pairedValue.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;");
+
+        HBox statsFooter = new HBox(
+                32,
+                new VBox(2, new Label("Clients Connected") {{ setStyle("-fx-font-size: 11px; -fx-text-fill: #64748b;"); }}, clientsValue),
+                new VBox(2, new Label("Paired Devices") {{ setStyle("-fx-font-size: 11px; -fx-text-fill: #64748b;"); }}, pairedValue),
+                new VBox(2, new Label("Server Uptime") {{ setStyle("-fx-font-size: 11px; -fx-text-fill: #64748b;"); }}, uptimeValue));
 
         VBox root = new VBox(
                 16,
-                title,
-                subtitle,
-                statusCard,
-                pairingCard,
-                statsCard);
+                header,
+                infoCardsRow,
+                pairingAlertCard,
+                devicesSection,
+                statsFooter);
 
         root.setPadding(new Insets(24));
-        root.setStyle("-fx-background-color: #0f172a;");
+        root.setStyle("-fx-background-color: #0b0f19;");
 
-        root.lookupAll(".label").forEach(node -> {
-            if (node instanceof Label label && label != title) {
-                if (label.getTextFill().equals(Color.BLACK)) {
-                    label.setTextFill(Color.WHITE);
-                }
-            }
-        });
-
-        title.setTextFill(Color.WHITE);
-        subtitle.setTextFill(Color.web("#94a3b8"));
-        serverTitle.setTextFill(Color.WHITE);
-
-        Scene scene = new Scene(root, 620, 520);
-        stage.setTitle("CTRLX - PC Dashboard");
+        Scene scene = new Scene(root, 650, 520);
+        stage.setTitle("CTRLX - PC Remote Receiver");
         stage.setScene(scene);
-        stage.setMinWidth(520);
-        stage.setMinHeight(460);
+        stage.setMinWidth(580);
+        stage.setMinHeight(480);
         stage.show();
 
         stage.setOnCloseRequest(e -> disconnect());
@@ -172,6 +195,17 @@ public class Dashboard extends Application {
             }
             Platform.runLater(this::connectToServer);
         }).start();
+    }
+
+    private void styleCard(VBox box) {
+        box.setPadding(new Insets(14));
+        box.setStyle("-fx-background-color: #131d31; -fx-background-radius: 10; -fx-border-color: #1e293b; -fx-border-radius: 10; -fx-border-width: 1;");
+    }
+
+    private javafx.scene.Node createSpacer() {
+        javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        return spacer;
     }
 
     private void startEmbeddedServerIfNeeded() {
@@ -187,22 +221,21 @@ public class Dashboard extends Application {
             t.start();
         }
 
-        // Register in-process pairing listener to show PIN on UI immediately
         try {
             Server.pairingManager.addListener((deviceId, deviceName, pin) -> {
                 Platform.runLater(() -> {
+                    activePinLabel.setText(pin);
                     pairingDeviceLabel.setText("Device: " + deviceName);
-                    pairingPinLabel.setText(pin);
-                    pairingCard.setVisible(true);
-                    pairingCard.setManaged(true);
-                    responseStatus.setText("Pairing requested by " + deviceName + ". PIN: " + pin);
+                    pairingPinAlertLabel.setText(pin);
+                    pairingAlertCard.setVisible(true);
+                    pairingAlertCard.setManaged(true);
                 });
             });
+
             Server.pairingManager.addClearListener(deviceId -> {
                 Platform.runLater(() -> {
-                    pairingCard.setVisible(false);
-                    pairingCard.setManaged(false);
-                    responseStatus.setText("Device paired successfully.");
+                    pairingAlertCard.setVisible(false);
+                    pairingAlertCard.setManaged(false);
                     requestStats();
                 });
             });
@@ -215,6 +248,18 @@ public class Dashboard extends Application {
             return true;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    private String getHostComputerName() {
+        try {
+            String name = System.getenv("COMPUTERNAME");
+            if (name != null && !name.trim().isEmpty()) {
+                return name;
+            }
+            return InetAddress.getLocalHost().getHostName();
+        } catch (Exception ignored) {
+            return "Windows PC";
         }
     }
 
@@ -290,9 +335,8 @@ public class Dashboard extends Application {
                 }
 
                 Platform.runLater(() -> {
-                    connectionStatus.setText("ONLINE");
-                    connectionStatus.setTextFill(Color.web("#4ade80"));
-                    responseStatus.setText("Receiver active and listening for mobile connections.");
+                    statusBadge.setText("● READY TO CONNECT");
+                    statusBadge.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 12; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
                     requestStats();
                 });
 
@@ -306,20 +350,23 @@ public class Dashboard extends Application {
                         Matcher pinM = pinPattern.matcher(received);
                         Matcher devM = devPattern.matcher(received);
                         String pin = pinM.find() ? pinM.group(1) : "------";
-                        String dev = devM.find() ? devM.group(1) : "Android Device";
+                        String dev = devM.find() ? devM.group(1) : "Android Phone";
 
                         Platform.runLater(() -> {
+                            activePinLabel.setText(pin);
                             pairingDeviceLabel.setText("Device: " + dev);
-                            pairingPinLabel.setText(pin);
-                            pairingCard.setVisible(true);
-                            pairingCard.setManaged(true);
+                            pairingPinAlertLabel.setText(pin);
+                            pairingAlertCard.setVisible(true);
+                            pairingAlertCard.setManaged(true);
                         });
                     } else if (received.contains("\"type\":\"PAIR_PIN_CLEARED\"")) {
                         Platform.runLater(() -> {
-                            pairingCard.setVisible(false);
-                            pairingCard.setManaged(false);
+                            pairingAlertCard.setVisible(false);
+                            pairingAlertCard.setManaged(false);
                             requestStats();
                         });
+                    } else if (received.contains("\"type\":\"DEVICES_UPDATE\"")) {
+                        updateDevicesList(received);
                     } else if (received.contains("\"type\":\"STATS\"")) {
                         updateStats(received);
                     }
@@ -327,9 +374,8 @@ public class Dashboard extends Application {
 
             } catch (Exception e) {
                 Platform.runLater(() -> {
-                    connectionStatus.setText("OFFLINE");
-                    connectionStatus.setTextFill(Color.web("#f87171"));
-                    responseStatus.setText("Connecting to receiver...");
+                    statusBadge.setText("● OFFLINE");
+                    statusBadge.setStyle("-fx-background-color: rgba(239, 68, 68, 0.15); -fx-text-fill: #f87171; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 12; -fx-background-radius: 20;");
                 });
             } finally {
                 try {
@@ -342,6 +388,67 @@ public class Dashboard extends Application {
                     in = null;
                     out = null;
                     connected = false;
+                }
+            }
+        }).start();
+    }
+
+    private void updateDevicesList(String json) {
+        try {
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+            JsonArray devices = root.getAsJsonArray("devices");
+
+            Platform.runLater(() -> {
+                devicesContainer.getChildren().clear();
+
+                if (devices == null || devices.size() == 0) {
+                    devicesContainer.getChildren().add(noDevicesLabel);
+                    statusBadge.setText("● READY TO CONNECT");
+                    statusBadge.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 12; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
+                    return;
+                }
+
+                statusBadge.setText("● CONNECTED (" + devices.size() + " DEVICE" + (devices.size() > 1 ? "S" : "") + ")");
+                statusBadge.setStyle("-fx-background-color: rgba(56, 189, 248, 0.15); -fx-text-fill: #38bdf8; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 12; -fx-background-radius: 20; -fx-border-color: #0284c7; -fx-border-radius: 20; -fx-border-width: 1;");
+
+                for (JsonElement el : devices) {
+                    JsonObject d = el.getAsJsonObject();
+                    String devId = d.get("deviceId").getAsString();
+                    String devName = d.has("deviceName") ? d.get("deviceName").getAsString() : "Mobile Phone";
+                    String devIp = d.has("remoteIp") ? d.get("remoteIp").getAsString() : "LAN";
+
+                    Label icon = new Label("📱");
+                    icon.setStyle("-fx-font-size: 20px;");
+
+                    Label nameLbl = new Label(devName);
+                    nameLbl.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #f8fafc;");
+
+                    Label ipLbl = new Label(devIp + " • Active");
+                    ipLbl.setStyle("-fx-font-size: 12px; -fx-text-fill: #10b981;");
+
+                    VBox info = new VBox(2, nameLbl, ipLbl);
+
+                    Button kickBtn = new Button("Disconnect");
+                    kickBtn.setStyle("-fx-background-color: #334155; -fx-text-fill: #f87171; -fx-font-size: 12px; -fx-font-weight: bold; -fx-cursor: hand;");
+                    kickBtn.setOnAction(e -> kickDevice(devId));
+
+                    HBox item = new HBox(12, icon, info, createSpacer(), kickBtn);
+                    item.setAlignment(Pos.CENTER_LEFT);
+                    item.setPadding(new Insets(10, 14, 10, 14));
+                    item.setStyle("-fx-background-color: #1e293b; -fx-background-radius: 8;");
+
+                    devicesContainer.getChildren().add(item);
+                }
+            });
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void kickDevice(String deviceId) {
+        new Thread(() -> {
+            synchronized (sendLock) {
+                if (connected && out != null) {
+                    out.println("{\"type\":\"KICK_DEVICE\",\"deviceId\":\"" + deviceId + "\"}");
                 }
             }
         }).start();

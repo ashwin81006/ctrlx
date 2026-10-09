@@ -1,64 +1,657 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center_vertical">
+    android:background="#0B0F19">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="CTRLX"
-        android:textSize="36sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="YOUR PC. YOUR CONTROL."
-        android:textSize="14sp" />
-
-    <EditText
-        android:id="@+id/ipAddress"
+    <!-- Main Content Container for the 3 Tab Screens -->
+    <FrameLayout
+        android:id="@+id/tabContentContainer"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:hint="PC IPv4 address"
-        android:inputType="text"
-        android:singleLine="true"
-        android:text="10.1.233.190" />
+        android:layout_height="match_parent"
+        android:layout_above="@id/bottomNavBar">
 
-    <Button
-        android:id="@+id/connectButton"
+        <!-- ============================================== -->
+        <!-- TAB 1: CONNECT & SCANNER SCREEN               -->
+        <!-- ============================================== -->
+        <ScrollView
+            android:id="@+id/layoutConnect"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:visibility="visible">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <!-- Header -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="CTRLX"
+                    android:textColor="#F8FAFC"
+                    android:textSize="26sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="PC Remote Receiver Discovery"
+                    android:textColor="#94A3B8"
+                    android:textSize="13sp"
+                    android:layout_marginTop="2dp" />
+
+                <!-- Scan Status & Rescan Bar -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="#131D31"
+                    android:padding="12dp"
+                    android:layout_marginTop="20dp">
+
+                    <ProgressBar
+                        android:id="@+id/scanProgress"
+                        style="?android:attr/progressBarStyleSmall"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp" />
+
+                    <TextView
+                        android:id="@+id/scanStatusText"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="10dp"
+                        android:text="Scanning local Wi-Fi for PCs..."
+                        android:textColor="#38BDF8"
+                        android:textSize="13sp" />
+
+                    <Button
+                        android:id="@+id/rescanButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:text="Rescan"
+                        android:textColor="#F8FAFC"
+                        android:textSize="11sp"
+                        android:background="#1E293B"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="AVAILABLE RECEIVERS"
+                    android:textColor="#64748B"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="24dp"
+                    android:layout_marginBottom="10dp" />
+
+                <!-- Discovered PCs List Container -->
+                <LinearLayout
+                    android:id="@+id/discoveredPcList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- Discovered PC Card -->
+                    <LinearLayout
+                        android:id="@+id/discoveredPcCard"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:background="#131D31"
+                        android:padding="16dp"
+                        android:gravity="center_vertical"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <TextView
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:background="#1E293B"
+                            android:gravity="center"
+                            android:text="💻"
+                            android:textSize="22sp" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:layout_marginStart="14dp">
+
+                            <TextView
+                                android:id="@+id/discoveredPcName"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Windows PC"
+                                android:textColor="#F8FAFC"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/discoveredPcIp"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="10.232.250.170 : 6060"
+                                android:textColor="#38BDF8"
+                                android:textSize="13sp" />
+
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/connectButtonLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="CONNECT ›"
+                            android:textColor="#2563EB"
+                            android:textSize="13sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- Manual IP Option -->
+                <TextView
+                    android:id="@+id/manualIpLink"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:text="+ Connect to custom IP address"
+                    android:textColor="#94A3B8"
+                    android:textSize="13sp"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </LinearLayout>
+
+        </ScrollView>
+
+
+        <!-- ============================================== -->
+        <!-- TAB 2: LAYOUTS / TOOLS GRID SCREEN (Monect style)-->
+        <!-- ============================================== -->
+        <ScrollView
+            android:id="@+id/layoutLayouts"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <!-- Header -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="LAYOUTS"
+                            android:textColor="#F8FAFC"
+                            android:textSize="24sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/layoutsConnectedBadge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="● Connected: Windows PC"
+                            android:textColor="#10B981"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <Button
+                        android:id="@+id/layoutsDisconnectBtn"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:text="Disconnect"
+                        android:textColor="#EF4444"
+                        android:textSize="11sp"
+                        android:background="#1E293B"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="REMOTE CONTROLLERS"
+                    android:textColor="#64748B"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="24dp"
+                    android:layout_marginBottom="12dp" />
+
+                <!-- Grid Row 1: Touchpad & Keyboard -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <!-- Tool 1: Touchpad -->
+                    <LinearLayout
+                        android:id="@+id/gridToolTouchpad"
+                        android:layout_width="0dp"
+                        android:layout_height="130dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:background="#131D31"
+                        android:padding="16dp"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <TextView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="#2563EB"
+                            android:gravity="center"
+                            android:text="🖱️"
+                            android:textSize="20sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Touchpad"
+                            android:textColor="#F8FAFC"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="12dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Mouse &amp; Gestures"
+                            android:textColor="#94A3B8"
+                            android:textSize="11sp" />
+
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="12dp"
+                        android:layout_height="match_parent" />
+
+                    <!-- Tool 2: Keyboard -->
+                    <LinearLayout
+                        android:id="@+id/gridToolKeyboard"
+                        android:layout_width="0dp"
+                        android:layout_height="130dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:background="#131D31"
+                        android:padding="16dp"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <TextView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="#1E293B"
+                            android:gravity="center"
+                            android:text="⌨️"
+                            android:textSize="20sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Keyboard"
+                            android:textColor="#F8FAFC"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="12dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Typing &amp; Hotkeys"
+                            android:textColor="#94A3B8"
+                            android:textSize="11sp" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- Grid Row 2: Media & Power -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="12dp">
+
+                    <!-- Tool 3: Media Controller -->
+                    <LinearLayout
+                        android:id="@+id/gridToolMedia"
+                        android:layout_width="0dp"
+                        android:layout_height="130dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:background="#131D31"
+                        android:padding="16dp"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <TextView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="#1E293B"
+                            android:gravity="center"
+                            android:text="🎵"
+                            android:textSize="20sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Media Remote"
+                            android:textColor="#F8FAFC"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="12dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Volume &amp; Playback"
+                            android:textColor="#94A3B8"
+                            android:textSize="11sp" />
+
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="12dp"
+                        android:layout_height="match_parent" />
+
+                    <!-- Tool 4: Power Controls -->
+                    <LinearLayout
+                        android:id="@+id/gridToolPower"
+                        android:layout_width="0dp"
+                        android:layout_height="130dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:background="#131D31"
+                        android:padding="16dp"
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <TextView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="#1E293B"
+                            android:gravity="center"
+                            android:text="⚡"
+                            android:textSize="20sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Power"
+                            android:textColor="#F8FAFC"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="12dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Lock &amp; Sleep"
+                            android:textColor="#94A3B8"
+                            android:textSize="11sp" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </ScrollView>
+
+
+        <!-- ============================================== -->
+        <!-- TAB 3: TOUCHPAD CONTROLLER (Monect style)     -->
+        <!-- ============================================== -->
+        <LinearLayout
+            android:id="@+id/layoutTouchpad"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="14dp"
+            android:visibility="gone">
+
+            <!-- Top Action Bar -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingBottom="8dp">
+
+                <TextView
+                    android:id="@+id/touchpadPcBadge"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="● Windows PC"
+                    android:textColor="#34D399"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <!-- Quick Keyboard Action Button -->
+                <Button
+                    android:id="@+id/quickKeyboardBtn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:text="⌨️ Type"
+                    android:textColor="#F8FAFC"
+                    android:textSize="12sp"
+                    android:background="#1E293B"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp" />
+
+            </LinearLayout>
+
+            <!-- Touchpad Surface -->
+            <FrameLayout
+                android:id="@+id/touchpadSurface"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="#131B2E"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:text="TOUCHPAD\n\nDrag: Pointer • Tap: Click\nTwo-Finger Scroll"
+                    android:textColor="#1E293B"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:lineSpacingExtra="4dp" />
+
+                <!-- Vertical Scroll Strip on Right Edge -->
+                <View
+                    android:layout_width="2dp"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="end"
+                    android:layout_marginEnd="32dp"
+                    android:layout_marginTop="24dp"
+                    android:layout_marginBottom="24dp"
+                    android:background="#1E293B" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end|center_vertical"
+                    android:layout_marginEnd="6dp"
+                    android:text="SCROLL"
+                    android:textColor="#334155"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
+
+            </FrameLayout>
+
+            <!-- Bottom Mouse Click Pads (Monect Style) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="10dp">
+
+                <Button
+                    android:id="@+id/leftClickButton"
+                    android:layout_width="0dp"
+                    android:layout_height="64dp"
+                    android:layout_weight="3"
+                    android:background="#2563EB"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:text="LEFT CLICK" />
+
+                <View
+                    android:layout_width="10dp"
+                    android:layout_height="match_parent" />
+
+                <Button
+                    android:id="@+id/rightClickButton"
+                    android:layout_width="0dp"
+                    android:layout_height="64dp"
+                    android:layout_weight="2"
+                    android:background="#1E293B"
+                    android:textColor="#F1F5F9"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:text="RIGHT CLICK" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+
+    <!-- ============================================== -->
+    <!-- MONECT-STYLE BOTTOM NAVIGATION BAR             -->
+    <!-- ============================================== -->
+    <LinearLayout
+        android:id="@+id/bottomNavBar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Connect" />
+        android:layout_height="56dp"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:background="#0F172A"
+        android:gravity="center_vertical">
 
-    <Button
-        android:id="@+id/pingButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:enabled="false"
-        android:text="Ping PC" />
+        <!-- Tab 1: Connect -->
+        <LinearLayout
+            android:id="@+id/navTabConnect"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true">
 
-    <Button
-        android:id="@+id/disconnectButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:enabled="false"
-        android:text="Disconnect" />
+            <TextView
+                android:id="@+id/navIconConnect"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📡"
+                android:textSize="18sp" />
 
-    <TextView
-        android:id="@+id/statusText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:text="Status: Disconnected"
-        android:textSize="15sp" />
+            <TextView
+                android:id="@+id/navLabelConnect"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Connect"
+                android:textColor="#38BDF8"
+                android:textSize="11sp"
+                android:textStyle="bold" />
 
-</LinearLayout>
+        </LinearLayout>
+
+        <!-- Tab 2: Layouts / Tools -->
+        <LinearLayout
+            android:id="@+id/navTabLayouts"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:id="@+id/navIconLayouts"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🎛️"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/navLabelLayouts"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Layouts"
+                android:textColor="#64748B"
+                android:textSize="11sp" />
+
+        </LinearLayout>
+
+        <!-- Tab 3: Touchpad -->
+        <LinearLayout
+            android:id="@+id/navTabTouchpad"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:id="@+id/navIconTouchpad"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🖱️"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/navLabelTouchpad"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Touchpad"
+                android:textColor="#64748B"
+                android:textSize="11sp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</RelativeLayout>
