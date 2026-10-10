@@ -25,14 +25,11 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.Enumeration;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,7 +45,6 @@ public class Dashboard extends Application {
 
     private Label statusBadge;
     private Label pcNameLabel;
-    private Label ipValueLabel;
     private Label activePinLabel;
 
     private VBox devicesContainer;
@@ -72,8 +68,8 @@ public class Dashboard extends Application {
         Label subtitle = new Label("PC REMOTE RECEIVER");
         subtitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #64748b; -fx-letter-spacing: 1px;");
 
-        statusBadge = new Label("● READY TO CONNECT");
-        statusBadge.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 12; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
+        statusBadge = new Label("● READY FOR CONNECTION");
+        statusBadge.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
 
         HBox header = new HBox(
                 new VBox(2, title, subtitle),
@@ -81,48 +77,33 @@ public class Dashboard extends Application {
                 statusBadge);
         header.setAlignment(Pos.CENTER_LEFT);
 
-        // PC Info & Security Cards (Monect-style grid)
+        // PC Info & Security Cards (Clean Monect style - No raw IP/port clutter)
         String hostName = getHostComputerName();
-        String wifiIp = getLocalWifiIp();
         String initialPin = Server.pairingManager.getOrCreateActivePin();
 
         // Card 1: PC Identity
-        Label pcTitle = new Label("COMPUTER NAME");
-        pcTitle.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #94a3b8;");
-        pcNameLabel = new Label(hostName);
-        pcNameLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #f8fafc;");
-        VBox pcCard = new VBox(4, pcTitle, pcNameLabel);
+        Label pcTitle = new Label("THIS COMPUTER");
+        pcTitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #94a3b8; -fx-letter-spacing: 1px;");
+        pcNameLabel = new Label("🖥️  " + hostName);
+        pcNameLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #f8fafc;");
+        Label pcSubtitle = new Label("Broadcasting on Wi-Fi • Automatic discovery active");
+        pcSubtitle.setStyle("-fx-font-size: 12px; -fx-text-fill: #34d399;");
+        VBox pcCard = new VBox(6, pcTitle, pcNameLabel, pcSubtitle);
         styleCard(pcCard);
 
-        // Card 2: Wi-Fi IP Address
-        Label ipTitle = new Label("WI-FI IP ADDRESS");
-        ipTitle.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #94a3b8;");
-        ipValueLabel = new Label(wifiIp + " : 6060");
-        ipValueLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #38bdf8;");
-        VBox ipCard = new VBox(4, ipTitle, ipValueLabel);
-        styleCard(ipCard);
-
-        // Card 3: Security PIN
+        // Card 2: Security PIN
         Label pinTitle = new Label("PAIRING PIN CODE");
-        pinTitle.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #94a3b8;");
+        pinTitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #94a3b8; -fx-letter-spacing: 1px;");
         activePinLabel = new Label(initialPin);
-        activePinLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #a78bfa; -fx-letter-spacing: 2px;");
+        activePinLabel.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #a78bfa; -fx-letter-spacing: 3px;");
 
-        Button refreshPinBtn = new Button("↻");
-        refreshPinBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #94a3b8; -fx-font-size: 14px; -fx-cursor: hand;");
-        refreshPinBtn.setOnAction(e -> {
-            Server.pairingManager.resetActivePin();
-            activePinLabel.setText(Server.pairingManager.getOrCreateActivePin());
-        });
-
-        HBox pinRow = new HBox(8, activePinLabel, refreshPinBtn);
-        pinRow.setAlignment(Pos.CENTER_LEFT);
-        VBox pinCard = new VBox(4, pinTitle, pinRow);
+        Label pinSubtitle = new Label("One-time passcode for new phones");
+        pinSubtitle.setStyle("-fx-font-size: 12px; -fx-text-fill: #94a3b8;");
+        VBox pinCard = new VBox(6, pinTitle, activePinLabel, pinSubtitle);
         styleCard(pinCard);
 
-        HBox infoCardsRow = new HBox(12, pcCard, ipCard, pinCard);
+        HBox infoCardsRow = new HBox(16, pcCard, pinCard);
         HBox.setHgrow(pcCard, Priority.ALWAYS);
-        HBox.setHgrow(ipCard, Priority.ALWAYS);
         HBox.setHgrow(pinCard, Priority.ALWAYS);
 
         // Prominent Pairing Alert Card (glowing when pairing is initiated)
@@ -288,28 +269,6 @@ public class Dashboard extends Application {
         }
     }
 
-    private String getLocalWifiIp() {
-        try {
-            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-            while (interfaces.hasMoreElements()) {
-                NetworkInterface n = interfaces.nextElement();
-                if (!n.isUp() || n.isLoopback() || n.isVirtual()) continue;
-                Enumeration<InetAddress> addresses = n.getInetAddresses();
-                while (addresses.hasMoreElements()) {
-                    InetAddress addr = addresses.nextElement();
-                    if (addr instanceof Inet4Address && !addr.isLoopbackAddress()) {
-                        String ip = addr.getHostAddress();
-                        if (ip.startsWith("192.168.") || ip.startsWith("10.")) {
-                            return ip;
-                        }
-                    }
-                }
-            }
-        } catch (Exception ignored) {
-        }
-        return "127.0.0.1";
-    }
-
     private void requestStats() {
         if (!connected || out == null) {
             connectToServer();
@@ -438,7 +397,6 @@ public class Dashboard extends Application {
                     JsonObject d = el.getAsJsonObject();
                     String devId = d.get("deviceId").getAsString();
                     String devName = d.has("deviceName") ? d.get("deviceName").getAsString() : "Mobile Phone";
-                    String devIp = d.has("remoteIp") ? d.get("remoteIp").getAsString() : "LAN";
 
                     Label icon = new Label("📱");
                     icon.setStyle("-fx-font-size: 20px;");
@@ -446,10 +404,10 @@ public class Dashboard extends Application {
                     Label nameLbl = new Label(devName);
                     nameLbl.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #f8fafc;");
 
-                    Label ipLbl = new Label(devIp + " • Active");
-                    ipLbl.setStyle("-fx-font-size: 12px; -fx-text-fill: #10b981;");
+                    Label statusLbl = new Label("Connected & Active");
+                    statusLbl.setStyle("-fx-font-size: 12px; -fx-text-fill: #34d399;");
 
-                    VBox info = new VBox(2, nameLbl, ipLbl);
+                    VBox info = new VBox(2, nameLbl, statusLbl);
 
                     Button kickBtn = new Button("Disconnect");
                     kickBtn.setStyle("-fx-background-color: #334155; -fx-text-fill: #f87171; -fx-font-size: 12px; -fx-font-weight: bold; -fx-cursor: hand;");

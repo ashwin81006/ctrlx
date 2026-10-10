@@ -46,7 +46,6 @@ public class MainActivity extends Activity {
     private static final String PREFS_NAME = "ctrlx_mobile_prefs";
     private static final String KEY_LAST_IP = "last_pc_ip";
     private static final String KEY_LAST_NAME = "last_pc_name";
-    private static final String DEFAULT_IP = "10.232.250.170";
     private static final int DISCOVERY_PORT = 6061;
     private static final int SERVER_PORT = 6060;
     private static final float SENSITIVITY = 1.8f;
@@ -80,7 +79,6 @@ public class MainActivity extends Activity {
     private TextView discoveredPcName;
     private TextView discoveredPcIp;
     private TextView connectButtonLabel;
-    private TextView manualIpLink;
 
     // Tab 2: Layouts Views
     private TextView layoutsConnectedBadge;
@@ -103,6 +101,7 @@ public class MainActivity extends Activity {
     private volatile boolean connected;
     private volatile boolean connecting;
     private volatile boolean authenticated;
+    private volatile boolean voluntaryDisconnect;
 
     private String targetPcIp;
     private String targetPcName = "Windows PC";
@@ -156,7 +155,6 @@ public class MainActivity extends Activity {
         discoveredPcName = findViewById(R.id.discoveredPcName);
         discoveredPcIp = findViewById(R.id.discoveredPcIp);
         connectButtonLabel = findViewById(R.id.connectButtonLabel);
-        manualIpLink = findViewById(R.id.manualIpLink);
 
         // Tab 2 Views
         layoutsConnectedBadge = findViewById(R.id.layoutsConnectedBadge);
@@ -213,12 +211,12 @@ public class MainActivity extends Activity {
         rescanButton.setOnClickListener(v -> startLanScan());
 
         discoveredPcCard.setOnClickListener(v -> {
-            if (targetPcIp != null && !targetPcIp.isEmpty()) {
+            if (authenticated) {
+                switchTab(Tab.TOUCHPAD);
+            } else if (targetPcIp != null && !targetPcIp.isEmpty()) {
                 connectToPC(targetPcIp, targetPcName);
             }
         });
-
-        manualIpLink.setOnClickListener(v -> showManualIpDialog());
 
         // Tab 2: Layouts listeners
         gridToolTouchpad.setOnClickListener(v -> switchTab(Tab.TOUCHPAD));
@@ -365,7 +363,7 @@ public class MainActivity extends Activity {
                     targetPcIp = resIp;
                     targetPcName = resName;
                     discoveredPcName.setText(resName);
-                    discoveredPcIp.setText(resIp + " : 6060 • Online");
+                    discoveredPcIp.setText("Wi-Fi Receiver • Tap to Connect");
                     discoveredPcCard.setVisibility(View.VISIBLE);
                     scanStatusText.setText("1 Receiver found on your Wi-Fi");
                     scanStatusText.setTextColor(Color.parseColor("#4ADE80"));
@@ -380,40 +378,14 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private void showManualIpDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Connect to Custom IP");
-
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(50, 20, 50, 10);
-
-        final EditText ipInput = new EditText(this);
-        ipInput.setHint("e.g. 10.232.250.170");
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        ipInput.setText(prefs.getString(KEY_LAST_IP, DEFAULT_IP));
-        layout.addView(ipInput);
-
-        builder.setView(layout);
-
-        builder.setPositiveButton("Connect", (dialog, which) -> {
-            String ip = ipInput.getText().toString().trim();
-            if (!ip.isEmpty()) {
-                connectToPC(ip, "Windows PC");
-            }
-        });
-
-        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-        builder.show();
-    }
-
     void connectToPC(String host, String hostName) {
         if (connected || connecting) {
             return;
         }
 
+        voluntaryDisconnect = false;
         connecting = true;
-        scanStatusText.setText("Connecting to " + hostName + " (" + host + ")...");
+        scanStatusText.setText("Connecting to " + hostName + "...");
         scanStatusText.setTextColor(Color.parseColor("#F59E0B"));
 
         new Thread(() -> {
@@ -454,7 +426,10 @@ public class MainActivity extends Activity {
                 String myDeviceName = Build.MODEL != null ? Build.MODEL : "Android Phone";
 
                 if (savedToken != null && !savedToken.isEmpty()) {
-                    runOnUiThread(() -> scanStatusText.setText("Authenticating with " + hostName + "..."));
+                    runOnUiThread(() -> {
+                        scanStatusText.setText("Authenticating with " + hostName + "...");
+                        scanStatusText.setTextColor(Color.parseColor("#38BDF8"));
+                    });
                     JSONObject authMsg = new JSONObject();
                     authMsg.put("type", "AUTH");
                     authMsg.put("deviceId", deviceId);
@@ -462,7 +437,10 @@ public class MainActivity extends Activity {
                     authMsg.put("token", savedToken);
                     writer.println(authMsg.toString());
                 } else {
-                    runOnUiThread(() -> scanStatusText.setText("Requesting pairing PIN from PC..."));
+                    runOnUiThread(() -> {
+                        scanStatusText.setText("Requesting pairing PIN from " + hostName + "...");
+                        scanStatusText.setTextColor(Color.parseColor("#F59E0B"));
+                    });
                     JSONObject pairMsg = new JSONObject();
                     pairMsg.put("type", "PAIR_REQUEST");
                     pairMsg.put("deviceId", deviceId);
@@ -498,7 +476,12 @@ public class MainActivity extends Activity {
                     } else if ("ERROR".equals(type)) {
                         String code = json.optString("code");
                         if ("AUTH_FAILED".equals(code)) {
+                            // Saved session expired or PC restarted; fallback seamlessly to PIN pairing
                             SecurityUtils.clearAuthToken(MainActivity.this);
+                            runOnUiThread(() -> {
+                                scanStatusText.setText("Requesting pairing PIN from " + hostName + "...");
+                                scanStatusText.setTextColor(Color.parseColor("#F59E0B"));
+                            });
                             JSONObject pairMsg = new JSONObject();
                             pairMsg.put("type", "PAIR_REQUEST");
                             pairMsg.put("deviceId", deviceId);
@@ -515,13 +498,15 @@ public class MainActivity extends Activity {
                                     pinDialog.dismiss();
                                 }
                                 Toast.makeText(MainActivity.this, "Pairing expired. Tap to retry.", Toast.LENGTH_LONG).show();
+                                scanStatusText.setText("Pairing expired. Tap PC to retry.");
+                                scanStatusText.setTextColor(Color.parseColor("#EF4444"));
                             });
                             break;
                         }
                     }
                 }
 
-                if (connected && socket == newSocket) {
+                if (connected && socket == newSocket && !voluntaryDisconnect) {
                     throw new Exception("Connection closed.");
                 }
 
@@ -530,12 +515,25 @@ public class MainActivity extends Activity {
                     if (pinDialog != null && pinDialog.isShowing()) {
                         pinDialog.dismiss();
                     }
-                    if (currentTab != Tab.CONNECT) {
-                        Toast.makeText(MainActivity.this, "Disconnected from PC", Toast.LENGTH_SHORT).show();
-                        switchTab(Tab.CONNECT);
+                    if (voluntaryDisconnect) {
+                        scanStatusText.setText("Disconnected. Ready to connect.");
+                        scanStatusText.setTextColor(Color.parseColor("#94A3B8"));
+                        if (discoveredPcIp != null) {
+                            discoveredPcIp.setText("Wi-Fi Receiver • Tap to Connect");
+                            discoveredPcIp.setTextColor(Color.parseColor("#34D399"));
+                        }
+                    } else {
+                        if (currentTab != Tab.CONNECT) {
+                            Toast.makeText(MainActivity.this, "Disconnected from " + hostName, Toast.LENGTH_SHORT).show();
+                            switchTab(Tab.CONNECT);
+                        }
+                        scanStatusText.setText("Disconnected from " + hostName + ".");
+                        scanStatusText.setTextColor(Color.parseColor("#94A3B8"));
+                        if (discoveredPcIp != null) {
+                            discoveredPcIp.setText("Wi-Fi Receiver • Tap to Connect");
+                            discoveredPcIp.setTextColor(Color.parseColor("#34D399"));
+                        }
                     }
-                    scanStatusText.setText("Connection failed. Check Wi-Fi & PC receiver.");
-                    scanStatusText.setTextColor(Color.parseColor("#EF4444"));
                 });
             } finally {
                 try {
@@ -555,6 +553,13 @@ public class MainActivity extends Activity {
     }
 
     private void onConnectionSuccess(String host, String hostName) {
+        scanStatusText.setText("Connected to " + hostName);
+        scanStatusText.setTextColor(Color.parseColor("#34D399"));
+        if (discoveredPcIp != null) {
+            discoveredPcIp.setText("Connected • Tap to open controls");
+            discoveredPcIp.setTextColor(Color.parseColor("#34D399"));
+        }
+
         layoutsConnectedBadge.setText("● Connected: " + hostName);
         touchpadPcBadge.setText("● " + hostName);
 
@@ -566,6 +571,9 @@ public class MainActivity extends Activity {
         if (isFinishing() || !connected) {
             return;
         }
+
+        scanStatusText.setText("Enter PIN displayed on " + hostName);
+        scanStatusText.setTextColor(Color.parseColor("#38BDF8"));
 
         if (pinDialog != null && pinDialog.isShowing()) {
             pinDialog.dismiss();
@@ -600,8 +608,10 @@ public class MainActivity extends Activity {
 
         builder.setNegativeButton("Cancel", (dialog, which) -> {
             dialog.dismiss();
+            voluntaryDisconnect = true;
             disconnectFromPC();
             switchTab(Tab.CONNECT);
+            startLanScan();
         });
 
         builder.setCancelable(false);
@@ -881,6 +891,7 @@ public class MainActivity extends Activity {
     }
 
     private void disconnectFromPC() {
+        voluntaryDisconnect = true;
         connecting = false;
         connected = false;
         authenticated = false;

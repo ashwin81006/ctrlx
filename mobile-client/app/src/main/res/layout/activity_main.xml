@@ -141,8 +141,8 @@
                                 android:id="@+id/discoveredPcIp"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="10.232.250.170 : 6060"
-                                android:textColor="#38BDF8"
+                                android:text="Wi-Fi Receiver • Tap to Connect"
+                                android:textColor="#34D399"
                                 android:textSize="13sp" />
 
                         </LinearLayout>
@@ -159,18 +159,6 @@
                     </LinearLayout>
 
                 </LinearLayout>
-
-                <!-- Manual IP Option -->
-                <TextView
-                    android:id="@+id/manualIpLink"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
-                    android:text="+ Connect to custom IP address"
-                    android:textColor="#94A3B8"
-                    android:textSize="13sp"
-                    android:clickable="true"
-                    android:focusable="true" />
 
             </LinearLayout>
 
