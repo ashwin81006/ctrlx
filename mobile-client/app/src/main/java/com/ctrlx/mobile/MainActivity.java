@@ -32,8 +32,13 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.InterfaceAddress;
+import java.net.NetworkInterface;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -245,24 +250,45 @@ public class MainActivity extends Activity {
         setupTouchpadGesture();
     }
 
+    private List<InetAddress> getBroadcastAddresses() {
+        List<InetAddress> broadcastList = new ArrayList<>();
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface networkInterface = interfaces.nextElement();
+                if (networkInterface.isLoopback() || !networkInterface.isUp()) {
+                    continue;
+                }
+                for (InterfaceAddress interfaceAddress : networkInterface.getInterfaceAddresses()) {
+                    InetAddress broadcast = interfaceAddress.getBroadcast();
+                    if (broadcast != null) {
+                        broadcastList.add(broadcast);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        if (broadcastList.isEmpty()) {
+            try {
+                broadcastList.add(InetAddress.getByName("255.255.255.255"));
+            } catch (Exception ignored) {
+            }
+        }
+        return broadcastList;
+    }
+
     private void startLanScan() {
         if (connecting || connected) {
             return;
         }
 
+        // Hide any previously displayed PC card immediately upon scanning
+        discoveredPcCard.setVisibility(View.GONE);
         scanProgress.setVisibility(View.VISIBLE);
         scanStatusText.setText("Scanning local Wi-Fi for PCs...");
+        scanStatusText.setTextColor(Color.parseColor("#38BDF8"));
         rescanButton.setEnabled(false);
-
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        String lastIp = prefs.getString(KEY_LAST_IP, DEFAULT_IP);
-        String lastName = prefs.getString(KEY_LAST_NAME, "Windows PC");
-
-        targetPcIp = lastIp;
-        targetPcName = lastName;
-        discoveredPcName.setText(lastName);
-        discoveredPcIp.setText(lastIp + " : 6060 (Saved)");
-        connectButtonLabel.setText("CONNECT ›");
+        targetPcIp = null;
 
         new Thread(() -> {
             WifiManager.MulticastLock lock = null;
@@ -279,16 +305,27 @@ public class MainActivity extends Activity {
 
                 try (DatagramSocket udpSocket = new DatagramSocket()) {
                     udpSocket.setBroadcast(true);
-                    udpSocket.setSoTimeout(1500);
+                    udpSocket.setSoTimeout(1200);
 
                     byte[] req = "{\"type\":\"CTRLX_DISCOVER\"}".getBytes(StandardCharsets.UTF_8);
-                    DatagramPacket packet = new DatagramPacket(
-                            req,
-                            req.length,
-                            InetAddress.getByName("255.255.255.255"),
-                            DISCOVERY_PORT
-                    );
-                    udpSocket.send(packet);
+
+                    // Send discovery packet to all subnet broadcast addresses and global broadcast
+                    List<InetAddress> targets = getBroadcastAddresses();
+                    for (InetAddress target : targets) {
+                        try {
+                            DatagramPacket packet = new DatagramPacket(req, req.length, target, DISCOVERY_PORT);
+                            udpSocket.send(packet);
+                        } catch (Exception ignored) {
+                        }
+                    }
+
+                    // Also broadcast to 255.255.255.255 as backup
+                    try {
+                        DatagramPacket globalPacket = new DatagramPacket(
+                                req, req.length, InetAddress.getByName("255.255.255.255"), DISCOVERY_PORT);
+                        udpSocket.send(globalPacket);
+                    } catch (Exception ignored) {
+                    }
 
                     byte[] buf = new byte[1024];
                     DatagramPacket responsePacket = new DatagramPacket(buf, buf.length);
@@ -307,6 +344,7 @@ public class MainActivity extends Activity {
                     }
                 }
             } catch (Exception ignored) {
+                // Timeout or socket error -> server is offline
             } finally {
                 if (lock != null && lock.isHeld()) {
                     try {
@@ -327,12 +365,16 @@ public class MainActivity extends Activity {
                     targetPcIp = resIp;
                     targetPcName = resName;
                     discoveredPcName.setText(resName);
-                    discoveredPcIp.setText(resIp + " : 6060 • Ready");
+                    discoveredPcIp.setText(resIp + " : 6060 • Online");
+                    discoveredPcCard.setVisibility(View.VISIBLE);
                     scanStatusText.setText("1 Receiver found on your Wi-Fi");
                     scanStatusText.setTextColor(Color.parseColor("#4ADE80"));
                 } else {
-                    scanStatusText.setText("Select your PC below to connect");
-                    scanStatusText.setTextColor(Color.parseColor("#38BDF8"));
+                    // When PC is offline, it is NOT shown on the phone
+                    targetPcIp = null;
+                    discoveredPcCard.setVisibility(View.GONE);
+                    scanStatusText.setText("No PC receiver found on your Wi-Fi.\nEnsure CTRLX is open on your PC.");
+                    scanStatusText.setTextColor(Color.parseColor("#94A3B8"));
                 }
             });
         }).start();

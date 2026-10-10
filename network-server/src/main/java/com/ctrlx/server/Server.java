@@ -390,7 +390,7 @@ public class Server {
                         out.println(authOk);
                     } else {
                         sendError(out, "AUTH_FAILED", "Authentication failed");
-                        break;
+                        continue;
                     }
                 } else if ("KICK_DEVICE".equals(type)) {
                     if (!authenticated || !"local-admin".equals(authenticatedDeviceId)) {
@@ -428,7 +428,7 @@ public class Server {
                     }
                     JsonObject stats = new JsonObject();
                     stats.addProperty("type", "STATS");
-                    stats.addProperty("connectedClients", clients.get());
+                    stats.addProperty("connectedClients", activeClients.size());
                     stats.addProperty(
                         "uptimeSeconds",
                         (System.nanoTime() - startTime) / 1_000_000_000L

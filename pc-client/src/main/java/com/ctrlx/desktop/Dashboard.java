@@ -5,6 +5,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -12,12 +15,11 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -36,10 +38,13 @@ import java.util.regex.Pattern;
 
 public class Dashboard extends Application {
     private Socket socket;
-    private BufferedReader in;
     private PrintWriter out;
     private volatile boolean connected;
     private final Object sendLock = new Object();
+
+    private Timeline uptimeTimeline;
+    private Timeline statsTimeline;
+    private long serverStartTimeMillis = System.currentTimeMillis();
 
     private Label statusBadge;
     private Label pcNameLabel;
@@ -185,7 +190,27 @@ public class Dashboard extends Application {
         stage.setMinHeight(480);
         stage.show();
 
-        stage.setOnCloseRequest(e -> disconnect());
+        stage.setOnCloseRequest(e -> {
+            if (uptimeTimeline != null) uptimeTimeline.stop();
+            if (statsTimeline != null) statsTimeline.stop();
+            disconnect();
+        });
+
+        // Live ticking stopwatch timer for Server Uptime (updates every 1 second)
+        uptimeTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+            long elapsedSecs = Math.max(0, (System.currentTimeMillis() - serverStartTimeMillis) / 1000L);
+            long hours = elapsedSecs / 3600;
+            long minutes = (elapsedSecs % 3600) / 60;
+            long seconds = elapsedSecs % 60;
+            uptimeValue.setText(String.format("%02d:%02d:%02d", hours, minutes, seconds));
+        }));
+        uptimeTimeline.setCycleCount(Animation.INDEFINITE);
+        uptimeTimeline.play();
+
+        // Periodic background stats synchronizer (updates every 3 seconds)
+        statsTimeline = new Timeline(new KeyFrame(Duration.seconds(3), e -> requestStats()));
+        statsTimeline.setCycleCount(Animation.INDEFINITE);
+        statsTimeline.play();
 
         // Connect automatically to local server
         new Thread(() -> {
@@ -245,7 +270,7 @@ public class Dashboard extends Application {
 
     private boolean isPortFree(int port) {
         try (ServerSocket s = new ServerSocket(port)) {
-            return true;
+            return s.isBound();
         } catch (Exception e) {
             return false;
         }
@@ -325,7 +350,6 @@ public class Dashboard extends Application {
                 }
 
                 socket = newSocket;
-                in = reader;
                 out = writer;
                 connected = true;
 
@@ -385,7 +409,6 @@ public class Dashboard extends Application {
 
                 if (socket == newSocket) {
                     socket = null;
-                    in = null;
                     out = null;
                     connected = false;
                 }
@@ -471,16 +494,12 @@ public class Dashboard extends Application {
         long uptime = Long.parseLong(uptimeMatcher.group(1));
         int paired = pairedMatcher.find() ? Integer.parseInt(pairedMatcher.group(1)) : 0;
 
-        long hours = uptime / 3600;
-        long minutes = (uptime % 3600) / 60;
-        long seconds = uptime % 60;
-
-        String formattedUptime = String.format("%02d:%02d:%02d", hours, minutes, seconds);
+        // Synchronize base start time so the 1-second live ticker counts seamlessly
+        serverStartTimeMillis = System.currentTimeMillis() - (uptime * 1000L);
 
         Platform.runLater(() -> {
             clientsValue.setText(String.valueOf(clients));
             pairedValue.setText(String.valueOf(paired));
-            uptimeValue.setText(formattedUptime);
         });
     }
 
@@ -489,7 +508,6 @@ public class Dashboard extends Application {
         Socket current = socket;
         socket = null;
         out = null;
-        in = null;
         if (current != null) {
             try {
                 current.close();
@@ -500,6 +518,12 @@ public class Dashboard extends Application {
 
     @Override
     public void stop() {
+        if (uptimeTimeline != null) {
+            uptimeTimeline.stop();
+        }
+        if (statsTimeline != null) {
+            statsTimeline.stop();
+        }
         disconnect();
     }
 

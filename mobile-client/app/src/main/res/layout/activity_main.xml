@@ -110,7 +110,8 @@
                         android:padding="16dp"
                         android:gravity="center_vertical"
                         android:clickable="true"
-                        android:focusable="true">
+                        android:focusable="true"
+                        android:visibility="gone">
 
                         <TextView
                             android:layout_width="44dp"

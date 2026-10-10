@@ -1,10 +1,5 @@
 package com.ctrlx.server;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -30,7 +25,6 @@ public class PairingManager {
     private static final int MAX_FAILED_ATTEMPTS = 3;
 
     private final SecureRandom secureRandom = new SecureRandom();
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final Map<String, PendingPairing> pendingPairings = new ConcurrentHashMap<>();
     private final Map<String, PairedDevice> pairedDevices = new ConcurrentHashMap<>();
     private final List<PairingListener> listeners = new CopyOnWriteArrayList<>();
@@ -60,14 +54,12 @@ public class PairingManager {
     }
 
     private static class PendingPairing {
-        final String deviceId;
         final String deviceName;
         final String pin;
         final long expiresAt;
         final AtomicInteger failedAttempts = new AtomicInteger(0);
 
-        PendingPairing(String deviceId, String deviceName, String pin, long expiresAt) {
-            this.deviceId = deviceId;
+        PendingPairing(String deviceName, String pin, long expiresAt) {
             this.deviceName = deviceName;
             this.pin = pin;
             this.expiresAt = expiresAt;
@@ -93,7 +85,15 @@ public class PairingManager {
     }
 
     public PairingManager() {
-        loadPairedDevices();
+        // Pairing is ephemeral per server run: clean up any legacy file and start fresh
+        try {
+            File file = new File(PAIRED_DEVICES_FILE);
+            if (file.exists()) {
+                file.delete();
+            }
+        } catch (Exception ignored) {
+        }
+        resetActivePin();
         initializeAdminToken();
     }
 
@@ -209,7 +209,7 @@ public class PairingManager {
         String pin = getOrCreateActivePin();
         long expiresAt = System.currentTimeMillis() + PIN_EXPIRY_MS;
 
-        PendingPairing pending = new PendingPairing(deviceId, deviceName, pin, expiresAt);
+        PendingPairing pending = new PendingPairing(deviceName, pin, expiresAt);
         pendingPairings.put(deviceId, pending);
 
         for (PairingListener l : listeners) {
@@ -268,7 +268,6 @@ public class PairingManager {
                 System.currentTimeMillis()
         );
         pairedDevices.put(deviceId, device);
-        savePairedDevices();
         notifyPinCleared(deviceId);
 
         return new PinVerifyResult(PinVerifyStatus.SUCCESS, token);
@@ -314,11 +313,7 @@ public class PairingManager {
             return false;
         }
         PairedDevice removed = pairedDevices.remove(deviceId);
-        if (removed != null) {
-            savePairedDevices();
-            return true;
-        }
-        return false;
+        return removed != null;
     }
 
     public boolean isPaired(String deviceId) {
@@ -331,52 +326,6 @@ public class PairingManager {
 
     public static boolean isValidDeviceId(String deviceId) {
         return deviceId != null && deviceId.matches("^[a-zA-Z0-9_-]{1,64}$");
-    }
-
-    private synchronized void loadPairedDevices() {
-        File file = new File(PAIRED_DEVICES_FILE);
-        if (!file.exists()) {
-            return;
-        }
-
-        try (FileReader reader = new FileReader(file, StandardCharsets.UTF_8)) {
-            JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
-            if (root.has("devices") && root.get("devices").isJsonObject()) {
-                JsonObject devicesObj = root.getAsJsonObject("devices");
-                for (String key : devicesObj.keySet()) {
-                    JsonObject d = devicesObj.getAsJsonObject(key);
-                    PairedDevice dev = new PairedDevice(
-                            d.get("deviceId").getAsString(),
-                            d.has("deviceName") ? d.get("deviceName").getAsString() : "Device",
-                            d.get("tokenHash").getAsString(),
-                            d.has("pairedAt") ? d.get("pairedAt").getAsLong() : 0L
-                    );
-                    pairedDevices.put(key, dev);
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("Notice: Could not load paired devices file, starting with empty store: " + e.getMessage());
-        }
-    }
-
-    private synchronized void savePairedDevices() {
-        File file = new File(PAIRED_DEVICES_FILE);
-        try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
-            JsonObject root = new JsonObject();
-            JsonObject devicesObj = new JsonObject();
-            for (Map.Entry<String, PairedDevice> entry : pairedDevices.entrySet()) {
-                JsonObject d = new JsonObject();
-                d.addProperty("deviceId", entry.getValue().deviceId);
-                d.addProperty("deviceName", entry.getValue().deviceName);
-                d.addProperty("tokenHash", entry.getValue().tokenHash);
-                d.addProperty("pairedAt", entry.getValue().pairedAt);
-                devicesObj.add(entry.getKey(), d);
-            }
-            root.add("devices", devicesObj);
-            gson.toJson(root, writer);
-        } catch (IOException e) {
-            System.err.println("Error saving paired devices file: " + e.getMessage());
-        }
     }
 
     public static String sha256Hex(String input) {

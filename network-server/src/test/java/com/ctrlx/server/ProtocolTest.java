@@ -222,7 +222,7 @@ public class ProtocolTest {
 
     private static boolean isPortFree(int port) {
         try (ServerSocket s = new ServerSocket(port)) {
-            return true;
+            return s.isBound();
         } catch (Exception e) {
             return false;
         }
