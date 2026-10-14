@@ -53,9 +53,6 @@ public class Dashboard extends Application {
     private Label uptimeValue;
     private Label pairedValue;
 
-    private VBox pairingAlertCard;
-    private Label pairingDeviceLabel;
-    private Label pairingPinAlertLabel;
 
     @Override
     public void start(Stage stage) {
@@ -106,24 +103,6 @@ public class Dashboard extends Application {
         HBox.setHgrow(pcCard, Priority.ALWAYS);
         HBox.setHgrow(pinCard, Priority.ALWAYS);
 
-        // Prominent Pairing Alert Card (glowing when pairing is initiated)
-        Label alertHeading = new Label("NEW DEVICE PAIRING REQUEST");
-        alertHeading.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #38bdf8;");
-
-        pairingDeviceLabel = new Label("Device: Android Phone");
-        pairingDeviceLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #e2e8f0;");
-
-        pairingPinAlertLabel = new Label("------");
-        pairingPinAlertLabel.setStyle("-fx-font-size: 40px; -fx-font-weight: bold; -fx-text-fill: #38bdf8; -fx-letter-spacing: 4px;");
-
-        Label alertInstruct = new Label("Enter this 6-digit PIN on your phone to pair. Expires in 60s.");
-        alertInstruct.setStyle("-fx-font-size: 12px; -fx-text-fill: #94a3b8;");
-
-        pairingAlertCard = new VBox(6, alertHeading, pairingDeviceLabel, pairingPinAlertLabel, alertInstruct);
-        pairingAlertCard.setPadding(new Insets(16));
-        pairingAlertCard.setStyle("-fx-background-color: #1e1b4b; -fx-border-color: #6366f1; -fx-border-width: 2px; -fx-border-radius: 12; -fx-background-radius: 12;");
-        pairingAlertCard.setVisible(false);
-        pairingAlertCard.setManaged(false);
 
         // Connected Devices Section (Monect style)
         Label devSectionTitle = new Label("CONNECTED DEVICES");
@@ -157,7 +136,6 @@ public class Dashboard extends Application {
                 16,
                 header,
                 infoCardsRow,
-                pairingAlertCard,
                 devicesSection,
                 statsFooter);
 
@@ -229,21 +207,11 @@ public class Dashboard extends Application {
 
         try {
             Server.pairingManager.addListener((deviceId, deviceName, pin) -> {
-                Platform.runLater(() -> {
-                    activePinLabel.setText(pin);
-                    pairingDeviceLabel.setText("Device: " + deviceName);
-                    pairingPinAlertLabel.setText(pin);
-                    pairingAlertCard.setVisible(true);
-                    pairingAlertCard.setManaged(true);
-                });
+                Platform.runLater(() -> activePinLabel.setText(pin));
             });
 
             Server.pairingManager.addClearListener(deviceId -> {
-                Platform.runLater(() -> {
-                    pairingAlertCard.setVisible(false);
-                    pairingAlertCard.setManaged(false);
-                    requestStats();
-                });
+                Platform.runLater(this::requestStats);
             });
         } catch (Throwable ignored) {
         }
@@ -329,25 +297,11 @@ public class Dashboard extends Application {
 
                     if (received.contains("\"type\":\"PAIR_PIN_NOTIFICATION\"")) {
                         Pattern pinPattern = Pattern.compile("\"pin\"\\s*:\\s*\"([0-9]{6})\"");
-                        Pattern devPattern = Pattern.compile("\"deviceName\"\\s*:\\s*\"([^\"]+)\"");
                         Matcher pinM = pinPattern.matcher(received);
-                        Matcher devM = devPattern.matcher(received);
                         String pin = pinM.find() ? pinM.group(1) : "------";
-                        String dev = devM.find() ? devM.group(1) : "Android Phone";
-
-                        Platform.runLater(() -> {
-                            activePinLabel.setText(pin);
-                            pairingDeviceLabel.setText("Device: " + dev);
-                            pairingPinAlertLabel.setText(pin);
-                            pairingAlertCard.setVisible(true);
-                            pairingAlertCard.setManaged(true);
-                        });
+                        Platform.runLater(() -> activePinLabel.setText(pin));
                     } else if (received.contains("\"type\":\"PAIR_PIN_CLEARED\"")) {
-                        Platform.runLater(() -> {
-                            pairingAlertCard.setVisible(false);
-                            pairingAlertCard.setManaged(false);
-                            requestStats();
-                        });
+                        Platform.runLater(this::requestStats);
                     } else if (received.contains("\"type\":\"DEVICES_UPDATE\"")) {
                         updateDevicesList(received);
                     } else if (received.contains("\"type\":\"STATS\"")) {

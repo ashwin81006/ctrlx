@@ -12,6 +12,7 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.text.InputType;
 import android.view.HapticFeedbackConstants;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
@@ -35,10 +36,13 @@ import java.net.InetSocketAddress;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -52,7 +56,6 @@ public class MainActivity extends Activity {
 
     public enum Tab {
         CONNECT,
-        LAYOUTS,
         TOUCHPAD
     }
 
@@ -60,37 +63,23 @@ public class MainActivity extends Activity {
 
     // Screens
     private ScrollView layoutConnect;
-    private ScrollView layoutLayouts;
     private LinearLayout layoutTouchpad;
 
     // Bottom Navigation Bar
     private LinearLayout navTabConnect;
-    private LinearLayout navTabLayouts;
     private LinearLayout navTabTouchpad;
     private TextView navLabelConnect;
-    private TextView navLabelLayouts;
     private TextView navLabelTouchpad;
 
     // Tab 1: Connect Views
     private ProgressBar scanProgress;
     private TextView scanStatusText;
     private Button rescanButton;
-    private LinearLayout discoveredPcCard;
-    private TextView discoveredPcName;
-    private TextView discoveredPcIp;
-    private TextView connectButtonLabel;
+    private LinearLayout discoveredPcList;
 
-    // Tab 2: Layouts Views
-    private TextView layoutsConnectedBadge;
-    private Button layoutsDisconnectBtn;
-    private LinearLayout gridToolTouchpad;
-    private LinearLayout gridToolKeyboard;
-    private LinearLayout gridToolMedia;
-    private LinearLayout gridToolPower;
-
-    // Tab 3: Touchpad Views
+    // Touchpad Views
     private TextView touchpadPcBadge;
-    private Button quickKeyboardBtn;
+    private Button touchpadDisconnectBtn;
     private FrameLayout touchpadSurface;
     private Button leftClickButton;
     private Button rightClickButton;
@@ -105,6 +94,7 @@ public class MainActivity extends Activity {
 
     private String targetPcIp;
     private String targetPcName = "Windows PC";
+    private final Map<String, String> discoveredServers = new LinkedHashMap<>();
     private AlertDialog pinDialog;
 
     private final Object sendLock = new Object();
@@ -136,37 +126,23 @@ public class MainActivity extends Activity {
     private void bindViews() {
         // Tab Containers
         layoutConnect = findViewById(R.id.layoutConnect);
-        layoutLayouts = findViewById(R.id.layoutLayouts);
         layoutTouchpad = findViewById(R.id.layoutTouchpad);
 
         // Bottom Navigation Bar
         navTabConnect = findViewById(R.id.navTabConnect);
-        navTabLayouts = findViewById(R.id.navTabLayouts);
         navTabTouchpad = findViewById(R.id.navTabTouchpad);
         navLabelConnect = findViewById(R.id.navLabelConnect);
-        navLabelLayouts = findViewById(R.id.navLabelLayouts);
         navLabelTouchpad = findViewById(R.id.navLabelTouchpad);
 
         // Tab 1 Views
         scanProgress = findViewById(R.id.scanProgress);
         scanStatusText = findViewById(R.id.scanStatusText);
         rescanButton = findViewById(R.id.rescanButton);
-        discoveredPcCard = findViewById(R.id.discoveredPcCard);
-        discoveredPcName = findViewById(R.id.discoveredPcName);
-        discoveredPcIp = findViewById(R.id.discoveredPcIp);
-        connectButtonLabel = findViewById(R.id.connectButtonLabel);
+        discoveredPcList = findViewById(R.id.discoveredPcList);
 
-        // Tab 2 Views
-        layoutsConnectedBadge = findViewById(R.id.layoutsConnectedBadge);
-        layoutsDisconnectBtn = findViewById(R.id.layoutsDisconnectBtn);
-        gridToolTouchpad = findViewById(R.id.gridToolTouchpad);
-        gridToolKeyboard = findViewById(R.id.gridToolKeyboard);
-        gridToolMedia = findViewById(R.id.gridToolMedia);
-        gridToolPower = findViewById(R.id.gridToolPower);
-
-        // Tab 3 Views
+        // Touchpad Views
         touchpadPcBadge = findViewById(R.id.touchpadPcBadge);
-        quickKeyboardBtn = findViewById(R.id.quickKeyboardBtn);
+        touchpadDisconnectBtn = findViewById(R.id.touchpadDisconnectBtn);
         touchpadSurface = findViewById(R.id.touchpadSurface);
         leftClickButton = findViewById(R.id.leftClickButton);
         rightClickButton = findViewById(R.id.rightClickButton);
@@ -174,14 +150,6 @@ public class MainActivity extends Activity {
 
     private void setupNavigation() {
         navTabConnect.setOnClickListener(v -> switchTab(Tab.CONNECT));
-
-        navTabLayouts.setOnClickListener(v -> {
-            if (!authenticated) {
-                Toast.makeText(this, "Connect to a PC first", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            switchTab(Tab.LAYOUTS);
-        });
 
         navTabTouchpad.setOnClickListener(v -> {
             if (!authenticated) {
@@ -196,12 +164,10 @@ public class MainActivity extends Activity {
         currentTab = tab;
         runOnUiThread(() -> {
             layoutConnect.setVisibility(tab == Tab.CONNECT ? View.VISIBLE : View.GONE);
-            layoutLayouts.setVisibility(tab == Tab.LAYOUTS ? View.VISIBLE : View.GONE);
             layoutTouchpad.setVisibility(tab == Tab.TOUCHPAD ? View.VISIBLE : View.GONE);
 
             // Update bottom nav bar highlight
             navLabelConnect.setTextColor(tab == Tab.CONNECT ? Color.parseColor("#38BDF8") : Color.parseColor("#64748B"));
-            navLabelLayouts.setTextColor(tab == Tab.LAYOUTS ? Color.parseColor("#38BDF8") : Color.parseColor("#64748B"));
             navLabelTouchpad.setTextColor(tab == Tab.TOUCHPAD ? Color.parseColor("#38BDF8") : Color.parseColor("#64748B"));
         });
     }
@@ -210,28 +176,12 @@ public class MainActivity extends Activity {
         // Tab 1: Connect listeners
         rescanButton.setOnClickListener(v -> startLanScan());
 
-        discoveredPcCard.setOnClickListener(v -> {
-            if (authenticated) {
-                switchTab(Tab.TOUCHPAD);
-            } else if (targetPcIp != null && !targetPcIp.isEmpty()) {
-                connectToPC(targetPcIp, targetPcName);
-            }
-        });
-
-        // Tab 2: Layouts listeners
-        gridToolTouchpad.setOnClickListener(v -> switchTab(Tab.TOUCHPAD));
-        gridToolKeyboard.setOnClickListener(v -> showKeyboardDialog());
-        gridToolMedia.setOnClickListener(v -> showMediaDialog());
-        gridToolPower.setOnClickListener(v -> showPowerDialog());
-
-        layoutsDisconnectBtn.setOnClickListener(v -> {
+        // Touchpad listeners
+        touchpadDisconnectBtn.setOnClickListener(v -> {
             disconnectFromPC();
             switchTab(Tab.CONNECT);
             startLanScan();
         });
-
-        // Tab 3: Touchpad listeners
-        quickKeyboardBtn.setOnClickListener(v -> showKeyboardDialog());
 
         leftClickButton.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
@@ -246,6 +196,66 @@ public class MainActivity extends Activity {
         });
 
         setupTouchpadGesture();
+    }
+
+    private void updateDiscoveredPcCards() {
+        runOnUiThread(() -> {
+            if (discoveredPcList == null) return;
+            discoveredPcList.removeAllViews();
+            LayoutInflater inflater = LayoutInflater.from(this);
+
+            if (discoveredServers.isEmpty()) {
+                scanStatusText.setText("No PC receiver found on your Wi-Fi.\nEnsure CTRLX is open on your PC.");
+                scanStatusText.setTextColor(Color.parseColor("#94A3B8"));
+                return;
+            }
+
+            int count = discoveredServers.size();
+            scanStatusText.setText(count + (count == 1 ? " PC receiver found on your Wi-Fi" : " PC receivers found on your Wi-Fi"));
+            scanStatusText.setTextColor(Color.parseColor("#4ADE80"));
+
+            for (Map.Entry<String, String> entry : discoveredServers.entrySet()) {
+                String ip = entry.getKey();
+                String name = entry.getValue();
+
+                View card = inflater.inflate(R.layout.item_pc_card, discoveredPcList, false);
+                TextView cardPcName = card.findViewById(R.id.cardPcName);
+                TextView cardPcStatus = card.findViewById(R.id.cardPcStatus);
+                TextView cardConnectBtn = card.findViewById(R.id.cardConnectBtn);
+
+                cardPcName.setText(name);
+
+                boolean isThisConnected = connected && authenticated && ip.equals(targetPcIp);
+                boolean isThisConnecting = connecting && ip.equals(targetPcIp);
+
+                if (isThisConnected) {
+                    cardPcStatus.setText(ip + " • Connected (Active)");
+                    cardPcStatus.setTextColor(Color.parseColor("#34D399"));
+                    cardConnectBtn.setText("OPEN ›");
+                    cardConnectBtn.setTextColor(Color.parseColor("#34D399"));
+                    card.setOnClickListener(v -> switchTab(Tab.TOUCHPAD));
+                } else if (isThisConnecting) {
+                    cardPcStatus.setText(ip + " • Connecting & Pairing...");
+                    cardPcStatus.setTextColor(Color.parseColor("#F59E0B"));
+                    cardConnectBtn.setText("PAIRING");
+                    cardConnectBtn.setTextColor(Color.parseColor("#F59E0B"));
+                    card.setOnClickListener(null);
+                } else {
+                    cardPcStatus.setText(ip + " • Tap to Enter PIN & Connect");
+                    cardPcStatus.setTextColor(Color.parseColor("#94A3B8"));
+                    cardConnectBtn.setText("CONNECT ›");
+                    cardConnectBtn.setTextColor(Color.parseColor("#38BDF8"));
+                    card.setOnClickListener(v -> {
+                        if (connected || connecting) {
+                            disconnectFromPC();
+                        }
+                        connectToPC(ip, name);
+                    });
+                }
+
+                discoveredPcList.addView(card);
+            }
+        });
     }
 
     private List<InetAddress> getBroadcastAddresses() {
@@ -276,22 +286,18 @@ public class MainActivity extends Activity {
     }
 
     private void startLanScan() {
-        if (connecting || connected) {
+        if (connecting) {
             return;
         }
 
-        // Hide any previously displayed PC card immediately upon scanning
-        discoveredPcCard.setVisibility(View.GONE);
         scanProgress.setVisibility(View.VISIBLE);
         scanStatusText.setText("Scanning local Wi-Fi for PCs...");
         scanStatusText.setTextColor(Color.parseColor("#38BDF8"));
         rescanButton.setEnabled(false);
-        targetPcIp = null;
 
         new Thread(() -> {
             WifiManager.MulticastLock lock = null;
-            String foundIp = null;
-            String foundName = "Windows PC";
+            Map<String, String> foundServers = new LinkedHashMap<>();
 
             try {
                 WifiManager wifi = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
@@ -303,11 +309,11 @@ public class MainActivity extends Activity {
 
                 try (DatagramSocket udpSocket = new DatagramSocket()) {
                     udpSocket.setBroadcast(true);
-                    udpSocket.setSoTimeout(1200);
+                    udpSocket.setSoTimeout(300);
 
                     byte[] req = "{\"type\":\"CTRLX_DISCOVER\"}".getBytes(StandardCharsets.UTF_8);
 
-                    // Send discovery packet to all subnet broadcast addresses and global broadcast
+                    // Send discovery packet to all subnet broadcast addresses
                     List<InetAddress> targets = getBroadcastAddresses();
                     for (InetAddress target : targets) {
                         try {
@@ -325,24 +331,36 @@ public class MainActivity extends Activity {
                     } catch (Exception ignored) {
                     }
 
+                    // Receive loop across all laptops on the network over a 1500ms window
+                    long deadline = System.currentTimeMillis() + 1500;
                     byte[] buf = new byte[1024];
-                    DatagramPacket responsePacket = new DatagramPacket(buf, buf.length);
-                    udpSocket.receive(responsePacket);
 
-                    String respStr = new String(responsePacket.getData(), 0, responsePacket.getLength(), StandardCharsets.UTF_8);
-                    if (respStr.contains("CTRLX_SERVER")) {
-                        foundIp = responsePacket.getAddress().getHostAddress();
+                    while (System.currentTimeMillis() < deadline) {
                         try {
-                            JSONObject json = new JSONObject(respStr);
-                            if (json.has("serverName")) {
-                                foundName = json.getString("serverName");
+                            DatagramPacket responsePacket = new DatagramPacket(buf, buf.length);
+                            udpSocket.receive(responsePacket);
+
+                            String respStr = new String(responsePacket.getData(), 0, responsePacket.getLength(), StandardCharsets.UTF_8);
+                            if (respStr.contains("CTRLX_SERVER")) {
+                                String foundIp = responsePacket.getAddress().getHostAddress();
+                                String foundName = "Windows PC";
+                                try {
+                                    JSONObject json = new JSONObject(respStr);
+                                    if (json.has("serverName")) {
+                                        foundName = json.getString("serverName");
+                                    }
+                                } catch (Exception ignored) {
+                                }
+                                if (foundIp != null && !foundIp.isEmpty()) {
+                                    foundServers.put(foundIp, foundName);
+                                }
                             }
-                        } catch (Exception ignored) {
+                        } catch (SocketTimeoutException ignored) {
+                            // Timeout for this receive slice, continue until deadline
                         }
                     }
                 }
             } catch (Exception ignored) {
-                // Timeout or socket error -> server is offline
             } finally {
                 if (lock != null && lock.isHeld()) {
                     try {
@@ -352,28 +370,12 @@ public class MainActivity extends Activity {
                 }
             }
 
-            final String resIp = foundIp;
-            final String resName = foundName;
-
             runOnUiThread(() -> {
                 scanProgress.setVisibility(View.GONE);
                 rescanButton.setEnabled(true);
-
-                if (resIp != null && !resIp.isEmpty()) {
-                    targetPcIp = resIp;
-                    targetPcName = resName;
-                    discoveredPcName.setText(resName);
-                    discoveredPcIp.setText("Wi-Fi Receiver • Tap to Connect");
-                    discoveredPcCard.setVisibility(View.VISIBLE);
-                    scanStatusText.setText("1 Receiver found on your Wi-Fi");
-                    scanStatusText.setTextColor(Color.parseColor("#4ADE80"));
-                } else {
-                    // When PC is offline, it is NOT shown on the phone
-                    targetPcIp = null;
-                    discoveredPcCard.setVisibility(View.GONE);
-                    scanStatusText.setText("No PC receiver found on your Wi-Fi.\nEnsure CTRLX is open on your PC.");
-                    scanStatusText.setTextColor(Color.parseColor("#94A3B8"));
-                }
+                discoveredServers.clear();
+                discoveredServers.putAll(foundServers);
+                updateDiscoveredPcCards();
             });
         }).start();
     }
@@ -383,10 +385,13 @@ public class MainActivity extends Activity {
             return;
         }
 
+        targetPcIp = host;
+        targetPcName = hostName;
         voluntaryDisconnect = false;
         connecting = true;
         scanStatusText.setText("Connecting to " + hostName + "...");
         scanStatusText.setTextColor(Color.parseColor("#F59E0B"));
+        updateDiscoveredPcCards();
 
         new Thread(() -> {
             Socket newSocket = new Socket();
@@ -421,49 +426,31 @@ public class MainActivity extends Activity {
                 SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
                 prefs.edit().putString(KEY_LAST_IP, host).putString(KEY_LAST_NAME, hostName).apply();
 
-                String savedToken = SecurityUtils.getAuthToken(MainActivity.this);
+                // Clear any cached token: user requested mandatory PIN verification on every connect & reconnect
+                SecurityUtils.clearAuthToken(MainActivity.this);
+
                 String deviceId = SecurityUtils.getDeviceId(MainActivity.this);
                 String myDeviceName = Build.MODEL != null ? Build.MODEL : "Android Phone";
 
-                if (savedToken != null && !savedToken.isEmpty()) {
-                    runOnUiThread(() -> {
-                        scanStatusText.setText("Authenticating with " + hostName + "...");
-                        scanStatusText.setTextColor(Color.parseColor("#38BDF8"));
-                    });
-                    JSONObject authMsg = new JSONObject();
-                    authMsg.put("type", "AUTH");
-                    authMsg.put("deviceId", deviceId);
-                    authMsg.put("deviceName", myDeviceName);
-                    authMsg.put("token", savedToken);
-                    writer.println(authMsg.toString());
-                } else {
-                    runOnUiThread(() -> {
-                        scanStatusText.setText("Requesting pairing PIN from " + hostName + "...");
-                        scanStatusText.setTextColor(Color.parseColor("#F59E0B"));
-                    });
-                    JSONObject pairMsg = new JSONObject();
-                    pairMsg.put("type", "PAIR_REQUEST");
-                    pairMsg.put("deviceId", deviceId);
-                    pairMsg.put("deviceName", myDeviceName);
-                    writer.println(pairMsg.toString());
-                }
+                runOnUiThread(() -> {
+                    scanStatusText.setText("Requesting pairing PIN from " + hostName + "...");
+                    scanStatusText.setTextColor(Color.parseColor("#F59E0B"));
+                });
+
+                JSONObject pairMsg = new JSONObject();
+                pairMsg.put("type", "PAIR_REQUEST");
+                pairMsg.put("deviceId", deviceId);
+                pairMsg.put("deviceName", myDeviceName);
+                writer.println(pairMsg.toString());
 
                 String message;
                 while ((message = reader.readLine()) != null) {
                     JSONObject json = new JSONObject(message);
                     String type = json.optString("type");
 
-                    if ("AUTH_SUCCESS".equals(type)) {
-                        authenticated = true;
-                        connecting = false;
-                        runOnUiThread(() -> onConnectionSuccess(host, hostName));
-                    } else if ("PAIR_PIN_REQUIRED".equals(type)) {
+                    if ("PAIR_PIN_REQUIRED".equals(type)) {
                         runOnUiThread(() -> promptForPin(hostName));
                     } else if ("PAIR_SUCCESS".equals(type)) {
-                        String token = json.optString("token");
-                        if (token != null && !token.isEmpty()) {
-                            SecurityUtils.saveAuthToken(MainActivity.this, token);
-                        }
                         authenticated = true;
                         connecting = false;
                         runOnUiThread(() -> {
@@ -475,19 +462,7 @@ public class MainActivity extends Activity {
                         });
                     } else if ("ERROR".equals(type)) {
                         String code = json.optString("code");
-                        if ("AUTH_FAILED".equals(code)) {
-                            // Saved session expired or PC restarted; fallback seamlessly to PIN pairing
-                            SecurityUtils.clearAuthToken(MainActivity.this);
-                            runOnUiThread(() -> {
-                                scanStatusText.setText("Requesting pairing PIN from " + hostName + "...");
-                                scanStatusText.setTextColor(Color.parseColor("#F59E0B"));
-                            });
-                            JSONObject pairMsg = new JSONObject();
-                            pairMsg.put("type", "PAIR_REQUEST");
-                            pairMsg.put("deviceId", deviceId);
-                            pairMsg.put("deviceName", myDeviceName);
-                            writer.println(pairMsg.toString());
-                        } else if ("INVALID_PIN".equals(code)) {
+                        if ("INVALID_PIN".equals(code)) {
                             runOnUiThread(() -> {
                                 Toast.makeText(MainActivity.this, "Incorrect PIN. Please re-enter.", Toast.LENGTH_LONG).show();
                                 promptForPin(hostName);
@@ -500,6 +475,7 @@ public class MainActivity extends Activity {
                                 Toast.makeText(MainActivity.this, "Pairing expired. Tap to retry.", Toast.LENGTH_LONG).show();
                                 scanStatusText.setText("Pairing expired. Tap PC to retry.");
                                 scanStatusText.setTextColor(Color.parseColor("#EF4444"));
+                                updateDiscoveredPcCards();
                             });
                             break;
                         }
@@ -518,10 +494,6 @@ public class MainActivity extends Activity {
                     if (voluntaryDisconnect) {
                         scanStatusText.setText("Disconnected. Ready to connect.");
                         scanStatusText.setTextColor(Color.parseColor("#94A3B8"));
-                        if (discoveredPcIp != null) {
-                            discoveredPcIp.setText("Wi-Fi Receiver • Tap to Connect");
-                            discoveredPcIp.setTextColor(Color.parseColor("#34D399"));
-                        }
                     } else {
                         if (currentTab != Tab.CONNECT) {
                             Toast.makeText(MainActivity.this, "Disconnected from " + hostName, Toast.LENGTH_SHORT).show();
@@ -529,11 +501,8 @@ public class MainActivity extends Activity {
                         }
                         scanStatusText.setText("Disconnected from " + hostName + ".");
                         scanStatusText.setTextColor(Color.parseColor("#94A3B8"));
-                        if (discoveredPcIp != null) {
-                            discoveredPcIp.setText("Wi-Fi Receiver • Tap to Connect");
-                            discoveredPcIp.setTextColor(Color.parseColor("#34D399"));
-                        }
                     }
+                    updateDiscoveredPcCards();
                 });
             } finally {
                 try {
@@ -548,6 +517,7 @@ public class MainActivity extends Activity {
                     authenticated = false;
                 }
                 connecting = false;
+                runOnUiThread(this::updateDiscoveredPcCards);
             }
         }).start();
     }
@@ -555,15 +525,10 @@ public class MainActivity extends Activity {
     private void onConnectionSuccess(String host, String hostName) {
         scanStatusText.setText("Connected to " + hostName);
         scanStatusText.setTextColor(Color.parseColor("#34D399"));
-        if (discoveredPcIp != null) {
-            discoveredPcIp.setText("Connected • Tap to open controls");
-            discoveredPcIp.setTextColor(Color.parseColor("#34D399"));
-        }
+        touchpadPcBadge.setText("● Connected: " + hostName);
+        updateDiscoveredPcCards();
 
-        layoutsConnectedBadge.setText("● Connected: " + hostName);
-        touchpadPcBadge.setText("● " + hostName);
-
-        // Monect Flow: jump directly to Touchpad controller upon connection!
+        // Jump directly to Touchpad controller upon connection!
         switchTab(Tab.TOUCHPAD);
     }
 
@@ -611,7 +576,7 @@ public class MainActivity extends Activity {
             voluntaryDisconnect = true;
             disconnectFromPC();
             switchTab(Tab.CONNECT);
-            startLanScan();
+            updateDiscoveredPcCards();
         });
 
         builder.setCancelable(false);
@@ -634,92 +599,6 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {
             }
         });
-    }
-
-    private void showKeyboardDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Keyboard & Hotkeys");
-
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(40, 20, 40, 10);
-
-        final EditText textInput = new EditText(this);
-        textInput.setHint("Type text to send to PC...");
-        layout.addView(textInput);
-
-        // Quick keys row 1: Enter, Backspace, Space, Esc
-        LinearLayout keysRow = new LinearLayout(this);
-        keysRow.setOrientation(LinearLayout.HORIZONTAL);
-        keysRow.setPadding(0, 20, 0, 0);
-
-        String[] keys = {"Enter", "Backspace", "Space", "Esc"};
-        for (String k : keys) {
-            Button btn = new Button(this);
-            btn.setText(k);
-            btn.setTextSize(11);
-            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-            p.setMargins(4, 0, 4, 0);
-            btn.setLayoutParams(p);
-            btn.setOnClickListener(v -> sendKeyPress(k.toUpperCase()));
-            keysRow.addView(btn);
-        }
-        layout.addView(keysRow);
-
-        builder.setView(layout);
-
-        builder.setPositiveButton("Send Text", (dialog, which) -> {
-            String text = textInput.getText().toString();
-            if (!text.isEmpty()) {
-                sendKeyText(text);
-            }
-        });
-
-        builder.setNegativeButton("Close", (dialog, which) -> dialog.dismiss());
-        builder.show();
-    }
-
-    private void showMediaDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Media Controller");
-
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(40, 20, 40, 20);
-
-        String[][] mediaButtons = {
-                {"Play / Pause", "SPACE"},
-                {"Volume Up", "UP"},
-                {"Volume Down", "DOWN"},
-                {"Mute / Esc", "ESCAPE"}
-        };
-
-        for (String[] item : mediaButtons) {
-            Button btn = new Button(this);
-            btn.setText(item[0]);
-            btn.setTextSize(14);
-            btn.setPadding(0, 16, 0, 16);
-            btn.setOnClickListener(v -> {
-                v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
-                sendKeyPress(item[1]);
-            });
-            layout.addView(btn);
-        }
-
-        builder.setView(layout);
-        builder.setNegativeButton("Close", (dialog, which) -> dialog.dismiss());
-        builder.show();
-    }
-
-    private void showPowerDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Power Controls");
-        builder.setMessage("Select a power action for your PC:");
-
-        builder.setPositiveButton("Lock PC (Win+L)", (dialog, which) -> sendKeyPress("WIN"));
-        builder.setNeutralButton("Sleep / Esc", (dialog, which) -> sendKeyPress("ESCAPE"));
-        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
-        builder.show();
     }
 
     private void setupTouchpadGesture() {
@@ -852,60 +731,26 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void sendKeyText(String text) {
-        if (!authenticated || out == null) {
-            return;
-        }
-        senderExecutor.submit(() -> {
-            try {
-                synchronized (sendLock) {
-                    if (out != null) {
-                        JSONObject msg = new JSONObject();
-                        msg.put("type", "KEY_TEXT");
-                        msg.put("text", text);
-                        out.println(msg.toString());
-                    }
-                }
-            } catch (Exception ignored) {
-            }
-        });
-    }
-
-    private void sendKeyPress(String key) {
-        if (!authenticated || out == null) {
-            return;
-        }
-        senderExecutor.submit(() -> {
-            try {
-                synchronized (sendLock) {
-                    if (out != null) {
-                        JSONObject msg = new JSONObject();
-                        msg.put("type", "KEY_PRESS");
-                        msg.put("key", key);
-                        out.println(msg.toString());
-                    }
-                }
-            } catch (Exception ignored) {
-            }
-        });
-    }
-
     private void disconnectFromPC() {
         voluntaryDisconnect = true;
         connecting = false;
         connected = false;
         authenticated = false;
+        SecurityUtils.clearAuthToken(this);
 
         Socket current = socket;
         socket = null;
         out = null;
 
         if (current != null) {
-            try {
-                current.close();
-            } catch (Exception ignored) {
-            }
+            new Thread(() -> {
+                try {
+                    current.close();
+                } catch (Exception ignored) {
+                }
+            }).start();
         }
+        runOnUiThread(this::updateDiscoveredPcCards);
     }
 
     private void triggerHaptic() {
@@ -924,8 +769,6 @@ public class MainActivity extends Activity {
     @Override
     public void onBackPressed() {
         if (currentTab == Tab.TOUCHPAD) {
-            switchTab(Tab.LAYOUTS);
-        } else if (currentTab == Tab.LAYOUTS) {
             switchTab(Tab.CONNECT);
         } else {
             super.onBackPressed();

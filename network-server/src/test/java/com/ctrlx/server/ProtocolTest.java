@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 
 public class ProtocolTest {
     private static final String HOST = "127.0.0.1";
-    private static final int PORT = 6060;
+    private static int testPort;
 
     @Test
     public void testProtocolSuite() throws Exception {
@@ -35,23 +35,24 @@ public class ProtocolTest {
             lastGeneratedPin.set(pin);
         });
 
-        // Ensure server is running in background if port is not yet bound
-        if (isPortFree(PORT)) {
-            Thread serverThread = new Thread(() -> {
-                try {
-                    Server.main(new String[0]);
-                } catch (Exception e) {
-                    System.err.println("Server exception: " + e.getMessage());
+        // Start isolated test server on dynamic ephemeral port (avoids collision with running app)
+        ServerSocket testServer = new ServerSocket(0);
+        testPort = testServer.getLocalPort();
+        Thread serverThread = new Thread(() -> {
+            try {
+                while (!testServer.isClosed()) {
+                    Socket socket = testServer.accept();
+                    Server.pool.submit(() -> Server.handleClient(socket));
                 }
-            });
-            serverThread.setDaemon(true);
-            serverThread.start();
-            Thread.sleep(600);
-        }
+            } catch (Exception ignored) {
+            }
+        });
+        serverThread.setDaemon(true);
+        serverThread.start();
 
         // Test 1: Handshake, PING, UNKNOWN, MALFORMED
         System.out.println("\n[Test 1] Baseline Handshake & Messages");
-        try (Socket socket = new Socket(HOST, PORT);
+        try (Socket socket = new Socket(HOST, testPort);
              BufferedReader in = createReader(socket);
              PrintWriter out = createWriter(socket)) {
 
@@ -78,7 +79,7 @@ public class ProtocolTest {
 
         // Test 2: Unauthenticated STATS & Control Commands Must Be Rejected
         System.out.println("\n[Test 2] Unauthenticated Authorization Enforcements");
-        try (Socket socket = new Socket(HOST, PORT);
+        try (Socket socket = new Socket(HOST, testPort);
              BufferedReader in = createReader(socket);
              PrintWriter out = createWriter(socket)) {
 
@@ -98,7 +99,7 @@ public class ProtocolTest {
 
         // Test 3: Oversized Message Buffer Protection (>4096 bytes)
         System.out.println("\n[Test 3] Oversized Message Buffer Protection");
-        try (Socket socket = new Socket(HOST, PORT);
+        try (Socket socket = new Socket(HOST, testPort);
              BufferedReader in = createReader(socket);
              PrintWriter out = createWriter(socket)) {
 
@@ -122,7 +123,7 @@ public class ProtocolTest {
         String issuedToken;
         String testDeviceId = "phone-unit-test-101";
 
-        try (Socket socket = new Socket(HOST, PORT);
+        try (Socket socket = new Socket(HOST, testPort);
              BufferedReader in = createReader(socket);
              PrintWriter out = createWriter(socket)) {
 
@@ -178,24 +179,10 @@ public class ProtocolTest {
             System.out.println("  ✓ Authenticated mouse move, clicks, and scroll executed successfully");
         }
 
-        // Test 5: Reconnecting and Authenticating with Stored Token
-        System.out.println("\n[Test 5] Reconnection with Token Authentication");
-        // Sub-test 5a: Invalid token rejected
-        try (Socket socket = new Socket(HOST, PORT);
-             BufferedReader in = createReader(socket);
-             PrintWriter out = createWriter(socket)) {
-
-            out.println("{\"type\":\"HELLO\",\"version\":1}");
-            in.readLine();
-
-            out.println("{\"type\":\"AUTH\",\"deviceId\":\"" + testDeviceId + "\",\"token\":\"invalid-bogus-token\"}");
-            String invalidAuth = in.readLine();
-            assertContains(invalidAuth, "AUTH_FAILED", "Invalid token should be rejected");
-            System.out.println("  ✓ Invalid token rejected: " + invalidAuth);
-        }
-
-        // Sub-test 5b: Valid token accepted
-        try (Socket socket = new Socket(HOST, PORT);
+        // Test 5: Mandatory PIN Pairing Architecture (Disconnect invalidates previous token, reconnect requires fresh PIN)
+        System.out.println("\n[Test 5] Disconnect Token Invalidation & Mandatory Re-Pairing Flow");
+        // Sub-test 5a: Previous session token is invalidated upon disconnect
+        try (Socket socket = new Socket(HOST, testPort);
              BufferedReader in = createReader(socket);
              PrintWriter out = createWriter(socket)) {
 
@@ -203,19 +190,42 @@ public class ProtocolTest {
             in.readLine();
 
             out.println("{\"type\":\"AUTH\",\"deviceId\":\"" + testDeviceId + "\",\"token\":\"" + issuedToken + "\"}");
-            String validAuth = in.readLine();
-            assertContains(validAuth, "AUTH_SUCCESS", "Valid token authentication failed");
-            System.out.println("  ✓ Valid token authenticated: " + validAuth);
+            String invalidAuth = in.readLine();
+            assertContains(invalidAuth, "AUTH_FAILED", "Previous token should be invalidated upon disconnect");
+            System.out.println("  ✓ Disconnect successfully invalidated token: " + invalidAuth);
+        }
 
-            // Test unpair
+        // Sub-test 5b: Reconnect requires fresh PAIR_REQUEST and PIN verification
+        try (Socket socket = new Socket(HOST, testPort);
+             BufferedReader in = createReader(socket);
+             PrintWriter out = createWriter(socket)) {
+
+            out.println("{\"type\":\"HELLO\",\"version\":1}");
+            in.readLine();
+
+            out.println("{\"type\":\"PAIR_REQUEST\",\"deviceId\":\"" + testDeviceId + "\",\"deviceName\":\"Android Test Phone\"}");
+            String pairReqResp = in.readLine();
+            assertContains(pairReqResp, "PAIR_PIN_REQUIRED", "Reconnection pair request failed");
+            System.out.println("  ✓ Reconnection requires fresh PIN: " + pairReqResp);
+
+            String rePin = lastGeneratedPin.get();
+            if (rePin == null) {
+                rePin = Server.pairingManager.getPendingPinForTesting(testDeviceId);
+            }
+            out.println("{\"type\":\"PAIR_VERIFY\",\"deviceId\":\"" + testDeviceId + "\",\"pin\":\"" + rePin + "\"}");
+            String rePairResp = in.readLine();
+            assertContains(rePairResp, "PAIR_SUCCESS", "Reconnection PIN verify failed");
+            System.out.println("  ✓ Fresh PIN verified and reconnected: " + rePairResp);
+
+            // Test explicit unpair
             out.println("{\"type\":\"UNPAIR\"}");
             String unpairResp = in.readLine();
             assertContains(unpairResp, "UNPAIR_SUCCESS", "Unpair failed");
             System.out.println("  ✓ Device unpairing: " + unpairResp);
         }
 
-        // Sub-test 5c: Token unusable after unpairing
-        try (Socket socket = new Socket(HOST, PORT);
+        // Sub-test 5c: Verify explicit unpair revokes token
+        try (Socket socket = new Socket(HOST, testPort);
              BufferedReader in = createReader(socket);
              PrintWriter out = createWriter(socket)) {
 
@@ -226,6 +236,10 @@ public class ProtocolTest {
             String postUnpairAuth = in.readLine();
             assertContains(postUnpairAuth, "AUTH_FAILED", "Revoked token should fail authentication");
             System.out.println("  ✓ Revoked token rejected after unpair: " + postUnpairAuth);
+        }
+        try {
+            testServer.close();
+        } catch (Exception ignored) {
         }
 
         System.out.println("\n=== ALL PROTOCOL TESTS PASSED SUCCESSFULLY! ===");

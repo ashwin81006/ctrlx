@@ -93,329 +93,18 @@
                     android:layout_marginTop="24dp"
                     android:layout_marginBottom="10dp" />
 
-                <!-- Discovered PCs List Container -->
+                <!-- Discovered PCs List Container (Dynamically populated with all laptops) -->
                 <LinearLayout
                     android:id="@+id/discoveredPcList"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <!-- Discovered PC Card -->
-                    <LinearLayout
-                        android:id="@+id/discoveredPcCard"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:background="#131D31"
-                        android:padding="16dp"
-                        android:gravity="center_vertical"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:visibility="gone">
-
-                        <TextView
-                            android:layout_width="44dp"
-                            android:layout_height="44dp"
-                            android:background="#1E293B"
-                            android:gravity="center"
-                            android:text="💻"
-                            android:textSize="22sp" />
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:layout_marginStart="14dp">
-
-                            <TextView
-                                android:id="@+id/discoveredPcName"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Windows PC"
-                                android:textColor="#F8FAFC"
-                                android:textSize="16sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/discoveredPcIp"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Wi-Fi Receiver • Tap to Connect"
-                                android:textColor="#34D399"
-                                android:textSize="13sp" />
-
-                        </LinearLayout>
-
-                        <TextView
-                            android:id="@+id/connectButtonLabel"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="CONNECT ›"
-                            android:textColor="#2563EB"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
-
-                    </LinearLayout>
-
-                </LinearLayout>
+                    android:orientation="vertical" />
 
             </LinearLayout>
 
         </ScrollView>
 
 
-        <!-- ============================================== -->
-        <!-- TAB 2: LAYOUTS / TOOLS GRID SCREEN (Monect style)-->
-        <!-- ============================================== -->
-        <ScrollView
-            android:id="@+id/layoutLayouts"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:fillViewport="true"
-            android:visibility="gone">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp">
-
-                <!-- Header -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="LAYOUTS"
-                            android:textColor="#F8FAFC"
-                            android:textSize="24sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/layoutsConnectedBadge"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="● Connected: Windows PC"
-                            android:textColor="#10B981"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-
-                    </LinearLayout>
-
-                    <Button
-                        android:id="@+id/layoutsDisconnectBtn"
-                        android:layout_width="wrap_content"
-                        android:layout_height="32dp"
-                        android:text="Disconnect"
-                        android:textColor="#EF4444"
-                        android:textSize="11sp"
-                        android:background="#1E293B"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp" />
-
-                </LinearLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="REMOTE CONTROLLERS"
-                    android:textColor="#64748B"
-                    android:textSize="11sp"
-                    android:textStyle="bold"
-                    android:layout_marginTop="24dp"
-                    android:layout_marginBottom="12dp" />
-
-                <!-- Grid Row 1: Touchpad & Keyboard -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <!-- Tool 1: Touchpad -->
-                    <LinearLayout
-                        android:id="@+id/gridToolTouchpad"
-                        android:layout_width="0dp"
-                        android:layout_height="130dp"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:background="#131D31"
-                        android:padding="16dp"
-                        android:clickable="true"
-                        android:focusable="true">
-
-                        <TextView
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="#2563EB"
-                            android:gravity="center"
-                            android:text="🖱️"
-                            android:textSize="20sp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Touchpad"
-                            android:textColor="#F8FAFC"
-                            android:textSize="15sp"
-                            android:textStyle="bold"
-                            android:layout_marginTop="12dp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Mouse &amp; Gestures"
-                            android:textColor="#94A3B8"
-                            android:textSize="11sp" />
-
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="12dp"
-                        android:layout_height="match_parent" />
-
-                    <!-- Tool 2: Keyboard -->
-                    <LinearLayout
-                        android:id="@+id/gridToolKeyboard"
-                        android:layout_width="0dp"
-                        android:layout_height="130dp"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:background="#131D31"
-                        android:padding="16dp"
-                        android:clickable="true"
-                        android:focusable="true">
-
-                        <TextView
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="#1E293B"
-                            android:gravity="center"
-                            android:text="⌨️"
-                            android:textSize="20sp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Keyboard"
-                            android:textColor="#F8FAFC"
-                            android:textSize="15sp"
-                            android:textStyle="bold"
-                            android:layout_marginTop="12dp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Typing &amp; Hotkeys"
-                            android:textColor="#94A3B8"
-                            android:textSize="11sp" />
-
-                    </LinearLayout>
-
-                </LinearLayout>
-
-                <!-- Grid Row 2: Media & Power -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="12dp">
-
-                    <!-- Tool 3: Media Controller -->
-                    <LinearLayout
-                        android:id="@+id/gridToolMedia"
-                        android:layout_width="0dp"
-                        android:layout_height="130dp"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:background="#131D31"
-                        android:padding="16dp"
-                        android:clickable="true"
-                        android:focusable="true">
-
-                        <TextView
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="#1E293B"
-                            android:gravity="center"
-                            android:text="🎵"
-                            android:textSize="20sp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Media Remote"
-                            android:textColor="#F8FAFC"
-                            android:textSize="15sp"
-                            android:textStyle="bold"
-                            android:layout_marginTop="12dp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Volume &amp; Playback"
-                            android:textColor="#94A3B8"
-                            android:textSize="11sp" />
-
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="12dp"
-                        android:layout_height="match_parent" />
-
-                    <!-- Tool 4: Power Controls -->
-                    <LinearLayout
-                        android:id="@+id/gridToolPower"
-                        android:layout_width="0dp"
-                        android:layout_height="130dp"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:background="#131D31"
-                        android:padding="16dp"
-                        android:clickable="true"
-                        android:focusable="true">
-
-                        <TextView
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:background="#1E293B"
-                            android:gravity="center"
-                            android:text="⚡"
-                            android:textSize="20sp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Power"
-                            android:textColor="#F8FAFC"
-                            android:textSize="15sp"
-                            android:textStyle="bold"
-                            android:layout_marginTop="12dp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Lock &amp; Sleep"
-                            android:textColor="#94A3B8"
-                            android:textSize="11sp" />
-
-                    </LinearLayout>
-
-                </LinearLayout>
-
-            </LinearLayout>
-
-        </ScrollView>
 
 
         <!-- ============================================== -->
@@ -447,14 +136,14 @@
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
-                <!-- Quick Keyboard Action Button -->
+                <!-- Disconnect Button -->
                 <Button
-                    android:id="@+id/quickKeyboardBtn"
+                    android:id="@+id/touchpadDisconnectBtn"
                     android:layout_width="wrap_content"
-                    android:layout_height="34dp"
-                    android:text="⌨️ Type"
-                    android:textColor="#F8FAFC"
-                    android:textSize="12sp"
+                    android:layout_height="32dp"
+                    android:text="Disconnect"
+                    android:textColor="#EF4444"
+                    android:textSize="11sp"
                     android:background="#1E293B"
                     android:paddingStart="12dp"
                     android:paddingEnd="12dp" />
@@ -585,33 +274,6 @@
 
         </LinearLayout>
 
-        <!-- Tab 2: Layouts / Tools -->
-        <LinearLayout
-            android:id="@+id/navTabLayouts"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true">
-
-            <TextView
-                android:id="@+id/navIconLayouts"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="🎛️"
-                android:textSize="18sp" />
-
-            <TextView
-                android:id="@+id/navLabelLayouts"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Layouts"
-                android:textColor="#64748B"
-                android:textSize="11sp" />
-
-        </LinearLayout>
 
         <!-- Tab 3: Touchpad -->
         <LinearLayout

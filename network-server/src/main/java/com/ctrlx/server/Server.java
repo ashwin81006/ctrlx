@@ -451,6 +451,7 @@ public class Server {
                 adminWriters.remove(clientWriter);
             }
             if (authenticatedDeviceId != null && !"local-admin".equals(authenticatedDeviceId)) {
+                pairingManager.unpair(authenticatedDeviceId);
                 activeClients.remove(authenticatedDeviceId);
                 broadcastConnectedDevices();
             }
