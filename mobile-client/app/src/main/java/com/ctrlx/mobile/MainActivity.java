@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.net.wifi.WifiManager;
 import android.os.Build;
@@ -56,7 +57,8 @@ public class MainActivity extends Activity {
 
     public enum Tab {
         CONNECT,
-        TOUCHPAD
+        TOUCHPAD,
+        GAMEPAD
     }
 
     private Tab currentTab = Tab.CONNECT;
@@ -64,12 +66,16 @@ public class MainActivity extends Activity {
     // Screens
     private ScrollView layoutConnect;
     private LinearLayout layoutTouchpad;
+    private LinearLayout layoutGamepad;
 
     // Bottom Navigation Bar
+    private LinearLayout bottomNavBar;
     private LinearLayout navTabConnect;
     private LinearLayout navTabTouchpad;
+    private LinearLayout navTabGamepad;
     private TextView navLabelConnect;
     private TextView navLabelTouchpad;
+    private TextView navLabelGamepad;
 
     // Tab 1: Connect Views
     private ProgressBar scanProgress;
@@ -83,6 +89,24 @@ public class MainActivity extends Activity {
     private FrameLayout touchpadSurface;
     private Button leftClickButton;
     private Button rightClickButton;
+
+    // Gamepad Views
+    private TextView gamepadPcBadge;
+    private Button gamepadProfileBtn;
+    private Button gamepadRotateBtn;
+    private Button gamepadBackBtn;
+    private JoystickView leftStick;
+    private JoystickView rightStick;
+    private Button btnLT, btnLB, btnRB, btnRT;
+    private Button btnView, btnXboxGuide, btnMenu;
+    private Button btnDpadUp, btnDpadLeft, btnDpadRight, btnDpadDown, btnL3;
+    private Button btnY, btnX, btnB, btnA, btnR3;
+
+    // Gamepad Profiles & State
+    private int currentProfileIndex = 0;
+    private final String[] profileNames = {"FPS / Action ▾", "Racing / Driving ▾", "Retro / 2D ▾"};
+    private final String[] profileCodes = {"FPS", "RACING", "RETRO"};
+    private boolean isLandscape = false;
 
     // Networking & State
     private volatile Socket socket;
@@ -127,12 +151,16 @@ public class MainActivity extends Activity {
         // Tab Containers
         layoutConnect = findViewById(R.id.layoutConnect);
         layoutTouchpad = findViewById(R.id.layoutTouchpad);
+        layoutGamepad = findViewById(R.id.layoutGamepad);
 
         // Bottom Navigation Bar
+        bottomNavBar = findViewById(R.id.bottomNavBar);
         navTabConnect = findViewById(R.id.navTabConnect);
         navTabTouchpad = findViewById(R.id.navTabTouchpad);
+        navTabGamepad = findViewById(R.id.navTabGamepad);
         navLabelConnect = findViewById(R.id.navLabelConnect);
         navLabelTouchpad = findViewById(R.id.navLabelTouchpad);
+        navLabelGamepad = findViewById(R.id.navLabelGamepad);
 
         // Tab 1 Views
         scanProgress = findViewById(R.id.scanProgress);
@@ -146,6 +174,37 @@ public class MainActivity extends Activity {
         touchpadSurface = findViewById(R.id.touchpadSurface);
         leftClickButton = findViewById(R.id.leftClickButton);
         rightClickButton = findViewById(R.id.rightClickButton);
+
+        // Gamepad Views
+        gamepadPcBadge = findViewById(R.id.gamepadPcBadge);
+        gamepadProfileBtn = findViewById(R.id.gamepadProfileBtn);
+        gamepadRotateBtn = findViewById(R.id.gamepadRotateBtn);
+        gamepadBackBtn = findViewById(R.id.gamepadBackBtn);
+        leftStick = findViewById(R.id.leftStick);
+        rightStick = findViewById(R.id.rightStick);
+        if (leftStick != null) leftStick.setLabel("LS");
+        if (rightStick != null) rightStick.setLabel("RS");
+
+        btnLT = findViewById(R.id.btnLT);
+        btnLB = findViewById(R.id.btnLB);
+        btnRB = findViewById(R.id.btnRB);
+        btnRT = findViewById(R.id.btnRT);
+
+        btnView = findViewById(R.id.btnView);
+        btnXboxGuide = findViewById(R.id.btnXboxGuide);
+        btnMenu = findViewById(R.id.btnMenu);
+
+        btnDpadUp = findViewById(R.id.btnDpadUp);
+        btnDpadLeft = findViewById(R.id.btnDpadLeft);
+        btnDpadRight = findViewById(R.id.btnDpadRight);
+        btnDpadDown = findViewById(R.id.btnDpadDown);
+        btnL3 = findViewById(R.id.btnL3);
+
+        btnY = findViewById(R.id.btnY);
+        btnX = findViewById(R.id.btnX);
+        btnB = findViewById(R.id.btnB);
+        btnA = findViewById(R.id.btnA);
+        btnR3 = findViewById(R.id.btnR3);
     }
 
     private void setupNavigation() {
@@ -153,22 +212,50 @@ public class MainActivity extends Activity {
 
         navTabTouchpad.setOnClickListener(v -> {
             if (!authenticated) {
-                Toast.makeText(this, "Connect to a PC first", Toast.LENGTH_SHORT).show();
-                return;
+                Toast.makeText(this, "Connect to a PC first for live input", Toast.LENGTH_SHORT).show();
             }
             switchTab(Tab.TOUCHPAD);
+        });
+
+        navTabGamepad.setOnClickListener(v -> {
+            if (!authenticated) {
+                Toast.makeText(this, "Connect to a PC first for live input", Toast.LENGTH_SHORT).show();
+            }
+            switchTab(Tab.GAMEPAD);
         });
     }
 
     private void switchTab(Tab tab) {
         currentTab = tab;
         runOnUiThread(() -> {
+            boolean isGamepad = (tab == Tab.GAMEPAD);
+
             layoutConnect.setVisibility(tab == Tab.CONNECT ? View.VISIBLE : View.GONE);
             layoutTouchpad.setVisibility(tab == Tab.TOUCHPAD ? View.VISIBLE : View.GONE);
+            layoutGamepad.setVisibility(isGamepad ? View.VISIBLE : View.GONE);
+
+            // Hide bottom nav bar in horizontal gamepad mode for full-screen console immersion
+            if (bottomNavBar != null) {
+                bottomNavBar.setVisibility(isGamepad ? View.GONE : View.VISIBLE);
+            }
 
             // Update bottom nav bar highlight
             navLabelConnect.setTextColor(tab == Tab.CONNECT ? Color.parseColor("#38BDF8") : Color.parseColor("#64748B"));
             navLabelTouchpad.setTextColor(tab == Tab.TOUCHPAD ? Color.parseColor("#38BDF8") : Color.parseColor("#64748B"));
+            navLabelGamepad.setTextColor(isGamepad ? Color.parseColor("#38BDF8") : Color.parseColor("#64748B"));
+
+            if (isGamepad) {
+                isLandscape = true;
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                if (targetPcName != null) {
+                    gamepadPcBadge.setText("🎮 " + targetPcName);
+                } else {
+                    gamepadPcBadge.setText("🎮 XBOX GAMEPAD");
+                }
+            } else {
+                isLandscape = false;
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            }
         });
     }
 
@@ -196,6 +283,70 @@ public class MainActivity extends Activity {
         });
 
         setupTouchpadGesture();
+
+        // Gamepad Action Buttons (Tactile multi-touch hold & release)
+        bindGamepadButton(btnA, "A");
+        bindGamepadButton(btnB, "B");
+        bindGamepadButton(btnX, "X");
+        bindGamepadButton(btnY, "Y");
+
+        // Gamepad Shoulder Buttons & Triggers
+        bindGamepadButton(btnLT, "LT");
+        bindGamepadButton(btnLB, "LB");
+        bindGamepadButton(btnRT, "RT");
+        bindGamepadButton(btnRB, "RB");
+
+        // Gamepad D-Pad Directions & Stick Clicks
+        bindGamepadButton(btnDpadUp, "DPAD_UP");
+        bindGamepadButton(btnDpadDown, "DPAD_DOWN");
+        bindGamepadButton(btnDpadLeft, "DPAD_LEFT");
+        bindGamepadButton(btnDpadRight, "DPAD_RIGHT");
+        bindGamepadButton(btnL3, "L3");
+        bindGamepadButton(btnR3, "R3");
+
+        // System & Xbox Guide Buttons
+        bindGamepadButton(btnView, "BACK");
+        bindGamepadButton(btnMenu, "START");
+        bindGamepadButton(btnXboxGuide, "XBOX");
+
+        // Virtual Analog Joysticks
+        if (leftStick != null) {
+            leftStick.setOnJoystickMoveListener((x, y) -> sendGamepadAxis("LEFT", x, y));
+        }
+        if (rightStick != null) {
+            rightStick.setOnJoystickMoveListener((x, y) -> sendGamepadAxis("RIGHT", x, y));
+        }
+
+        // Profile switcher button (FPS / Racing / Retro)
+        if (gamepadProfileBtn != null) {
+            gamepadProfileBtn.setOnClickListener(v -> {
+                currentProfileIndex = (currentProfileIndex + 1) % profileNames.length;
+                gamepadProfileBtn.setText(profileNames[currentProfileIndex]);
+                sendGamepadProfile(profileCodes[currentProfileIndex]);
+                triggerHaptic();
+                Toast.makeText(this, "Profile: " + profileNames[currentProfileIndex].replace(" ▾", ""), Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        // Back to Touchpad / Connect button
+        if (gamepadBackBtn != null) {
+            gamepadBackBtn.setOnClickListener(v -> {
+                triggerHaptic();
+                switchTab(authenticated ? Tab.TOUCHPAD : Tab.CONNECT);
+            });
+        }
+
+        // Screen orientation toggle (Landscape / Portrait)
+        if (gamepadRotateBtn != null) {
+            gamepadRotateBtn.setOnClickListener(v -> {
+                isLandscape = !isLandscape;
+                setRequestedOrientation(isLandscape
+                        ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                        : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                gamepadRotateBtn.setText(isLandscape ? "⛶ Rotate" : "⛶ Landscape");
+                triggerHaptic();
+            });
+        }
     }
 
     private void updateDiscoveredPcCards() {
@@ -358,6 +509,13 @@ public class MainActivity extends Activity {
                         } catch (SocketTimeoutException ignored) {
                             // Timeout for this receive slice, continue until deadline
                         }
+                    }
+
+                    // Check if localhost (127.0.0.1) is forwarded over USB (via adb reverse)
+                    try (Socket usbSocket = new Socket()) {
+                        usbSocket.connect(new InetSocketAddress("127.0.0.1", SERVER_PORT), 250);
+                        foundServers.put("127.0.0.1", "Windows PC (USB)");
+                    } catch (Exception ignored) {
                     }
                 }
             } catch (Exception ignored) {
@@ -526,10 +684,11 @@ public class MainActivity extends Activity {
         scanStatusText.setText("Connected to " + hostName);
         scanStatusText.setTextColor(Color.parseColor("#34D399"));
         touchpadPcBadge.setText("● Connected: " + hostName);
+        gamepadPcBadge.setText("🎮 " + hostName);
         updateDiscoveredPcCards();
 
-        // Jump directly to Touchpad controller upon connection!
-        switchTab(Tab.TOUCHPAD);
+        // Jump directly to Gamepad controller upon connection!
+        switchTab(Tab.GAMEPAD);
     }
 
     private void promptForPin(String hostName) {
@@ -766,9 +925,73 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void bindGamepadButton(Button btn, String buttonCode) {
+        if (btn == null) return;
+        btn.setOnTouchListener((v, event) -> {
+            if (!authenticated) {
+                return false;
+            }
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN) {
+                v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+                triggerHaptic();
+                sendGamepadButton(buttonCode, "DOWN");
+                v.setPressed(true);
+                return true;
+            } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                sendGamepadButton(buttonCode, "UP");
+                v.setPressed(false);
+                return true;
+            }
+            return false;
+        });
+    }
+
+    private void sendGamepadButton(String button, String state) {
+        if (!authenticated || out == null) return;
+        senderExecutor.submit(() -> {
+            try {
+                synchronized (sendLock) {
+                    if (out != null) {
+                        out.println("{\"type\":\"GAMEPAD_BUTTON\",\"button\":\"" + button + "\",\"state\":\"" + state + "\"}");
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        });
+    }
+
+    private void sendGamepadAxis(String stick, float x, float y) {
+        if (!authenticated || out == null) return;
+        senderExecutor.submit(() -> {
+            try {
+                synchronized (sendLock) {
+                    if (out != null) {
+                        out.println("{\"type\":\"GAMEPAD_AXIS\",\"stick\":\"" + stick + "\",\"x\":" + x + ",\"y\":" + y + "}");
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        });
+    }
+
+    private void sendGamepadProfile(String profile) {
+        if (!authenticated || out == null) return;
+        senderExecutor.submit(() -> {
+            try {
+                synchronized (sendLock) {
+                    if (out != null) {
+                        out.println("{\"type\":\"GAMEPAD_PROFILE\",\"profile\":\"" + profile + "\"}");
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        });
+    }
+
     @Override
     public void onBackPressed() {
-        if (currentTab == Tab.TOUCHPAD) {
+        if (currentTab == Tab.TOUCHPAD || currentTab == Tab.GAMEPAD) {
             switchTab(Tab.CONNECT);
         } else {
             super.onBackPressed();

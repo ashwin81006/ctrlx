@@ -168,15 +168,25 @@ public class ProtocolTest {
             assertContains(authStats, "connectedClients", "Authenticated STATS failed");
             System.out.println("  ✓ Authenticated STATS succeeded: " + authStats);
 
-            // Test authenticated mouse operations
+            // Test authenticated mouse and gamepad operations
             out.println("{\"type\":\"MOUSE_MOVE\",\"dx\":15,\"dy\":-10}");
             out.println("{\"type\":\"MOUSE_CLICK\",\"button\":\"LEFT\",\"action\":\"CLICK\"}");
             out.println("{\"type\":\"MOUSE_CLICK\",\"button\":\"RIGHT\",\"action\":\"CLICK\"}");
             out.println("{\"type\":\"MOUSE_SCROLL\",\"amount\":-3}");
+
+            // Test gamepad commands
+            out.println("{\"type\":\"GAMEPAD_BUTTON\",\"button\":\"A\",\"state\":\"DOWN\"}");
+            out.println("{\"type\":\"GAMEPAD_BUTTON\",\"button\":\"A\",\"state\":\"UP\"}");
+            out.println("{\"type\":\"GAMEPAD_AXIS\",\"stick\":\"LEFT\",\"x\":0.5,\"y\":-0.8}");
+            out.println("{\"type\":\"GAMEPAD_AXIS\",\"stick\":\"LEFT\",\"x\":0.0,\"y\":0.0}");
+            out.println("{\"type\":\"GAMEPAD_TRIGGER\",\"trigger\":\"RT\",\"value\":1.0}");
+            out.println("{\"type\":\"GAMEPAD_TRIGGER\",\"trigger\":\"RT\",\"value\":0.0}");
+            out.println("{\"type\":\"GAMEPAD_PROFILE\",\"profile\":\"RACING\"}");
+
             out.println("{\"type\":\"PING\"}"); // Flush and verify session is still healthy
             String healthPong = in.readLine();
-            assertContains(healthPong, "PONG", "Session unhealthy after mouse commands");
-            System.out.println("  ✓ Authenticated mouse move, clicks, and scroll executed successfully");
+            assertContains(healthPong, "PONG", "Session unhealthy after mouse and gamepad commands");
+            System.out.println("  ✓ Authenticated mouse move, clicks, scroll, and gamepad commands executed successfully");
         }
 
         // Test 5: Mandatory PIN Pairing Architecture (Disconnect invalidates previous token, reconnect requires fresh PIN)

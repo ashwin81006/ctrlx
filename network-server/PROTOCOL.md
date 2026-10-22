@@ -106,6 +106,49 @@ Server:
 
 ---
 
+## Xbox Gamepad Controls (Requires Authentication)
+
+### 1. Gamepad Button State (Press & Release)
+Client:
+```json
+{"type":"GAMEPAD_BUTTON","button":"A","state":"DOWN"}
+```
+Supported buttons:
+- `A`, `B`, `X`, `Y` (Standard Xbox action buttons)
+- `LB`, `RB` (Left & Right Bumpers)
+- `LT`, `RT` (Left & Right Triggers)
+- `DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT`, `DPAD_RIGHT`
+- `START` (Menu / Pause), `BACK` (View / Map / Scoreboard)
+- `XBOX` (Xbox Guide button - triggers Windows Game Bar)
+- `L3`, `R3` (Thumbstick clicks)
+
+States: `"DOWN"`, `"UP"`
+
+### 2. Gamepad Analog Thumbsticks
+Client:
+```json
+{"type":"GAMEPAD_AXIS","stick":"LEFT","x":-0.75,"y":0.82}
+```
+- `stick`: `"LEFT"` (Character movement / WASD) or `"RIGHT"` (Camera aim / Mouse look)
+- `x`, `y`: Float values between `-1.0` and `1.0`
+
+### 3. Analog Triggers
+Client:
+```json
+{"type":"GAMEPAD_TRIGGER","trigger":"RT","value":0.85}
+```
+- `trigger`: `"LT"` (Left Trigger) or `"RT"` (Right Trigger)
+- `value`: Float between `0.0` (unpressed) and `1.0` (fully depressed)
+
+### 4. Gamepad Profile Selection
+Client:
+```json
+{"type":"GAMEPAD_PROFILE","profile":"FPS"}
+```
+Profiles: `"FPS"`, `"RACING"`, `"RETRO"`
+
+---
+
 ## Error Responses
 ```json
 {"type":"ERROR","code":"AUTH_REQUIRED","message":"Authentication required"}

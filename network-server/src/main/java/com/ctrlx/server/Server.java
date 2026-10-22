@@ -30,6 +30,7 @@ public class Server {
     public static final ExecutorService pool = Executors.newCachedThreadPool();
     public static final PairingManager pairingManager = new PairingManager();
     public static final MouseController mouseController = new MouseController();
+    public static final GamepadController gamepadController = new GamepadController();
     public static final Set<PrintWriter> adminWriters = ConcurrentHashMap.newKeySet();
 
     public static class ActiveClient {
@@ -295,6 +296,47 @@ public class Server {
                     if (message.has("key")) {
                         mouseController.pressKey(message.get("key").getAsString());
                     }
+                } else if ("GAMEPAD_BUTTON".equals(type)) {
+                    if (!authenticated) {
+                        sendError(out, "AUTH_REQUIRED", "Authentication required");
+                        continue;
+                    }
+                    if (message.has("button") && message.has("state")) {
+                        gamepadController.handleButton(message.get("button").getAsString(), message.get("state").getAsString());
+                    }
+                } else if ("GAMEPAD_AXIS".equals(type)) {
+                    if (!authenticated) {
+                        sendError(out, "AUTH_REQUIRED", "Authentication required");
+                        continue;
+                    }
+                    if (message.has("stick") && message.has("x") && message.has("y")) {
+                        try {
+                            float x = (float) message.get("x").getAsDouble();
+                            float y = (float) message.get("y").getAsDouble();
+                            gamepadController.handleAxis(message.get("stick").getAsString(), x, y);
+                        } catch (Exception ignored) {
+                        }
+                    }
+                } else if ("GAMEPAD_TRIGGER".equals(type)) {
+                    if (!authenticated) {
+                        sendError(out, "AUTH_REQUIRED", "Authentication required");
+                        continue;
+                    }
+                    if (message.has("trigger") && message.has("value")) {
+                        try {
+                            float val = (float) message.get("value").getAsDouble();
+                            gamepadController.handleTrigger(message.get("trigger").getAsString(), val);
+                        } catch (Exception ignored) {
+                        }
+                    }
+                } else if ("GAMEPAD_PROFILE".equals(type)) {
+                    if (!authenticated) {
+                        sendError(out, "AUTH_REQUIRED", "Authentication required");
+                        continue;
+                    }
+                    if (message.has("profile")) {
+                        gamepadController.setProfileByName(message.get("profile").getAsString());
+                    }
                 } else if ("PING".equals(type)) {
                     JsonObject pong = new JsonObject();
                     pong.addProperty("type", "PONG");
@@ -447,6 +489,7 @@ public class Server {
         } catch (Exception e) {
             System.out.println("Client disconnected: " + e.getMessage());
         } finally {
+            gamepadController.resetAll();
             if (clientWriter != null) {
                 adminWriters.remove(clientWriter);
             }
