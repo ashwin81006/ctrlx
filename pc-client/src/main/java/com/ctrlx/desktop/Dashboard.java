@@ -99,9 +99,20 @@ public class Dashboard extends Application {
         VBox pinCard = new VBox(6, pinTitle, activePinLabel, pinSubtitle);
         styleCard(pinCard);
 
-        HBox infoCardsRow = new HBox(16, pcCard, pinCard);
+        // Card 3: Xbox Gamepad Receiver
+        Label padTitle = new Label("GAMEPAD RECEIVER");
+        padTitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #94a3b8; -fx-letter-spacing: 1px;");
+        Label padProfileLabel = new Label("🎮 Xbox Pad Ready");
+        padProfileLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #38bdf8;");
+        Label padSubtitle = new Label("WASD Movement • Mouse Aim");
+        padSubtitle.setStyle("-fx-font-size: 11px; -fx-text-fill: #94a3b8;");
+        VBox padCard = new VBox(6, padTitle, padProfileLabel, padSubtitle);
+        styleCard(padCard);
+
+        HBox infoCardsRow = new HBox(12, pcCard, pinCard, padCard);
         HBox.setHgrow(pcCard, Priority.ALWAYS);
         HBox.setHgrow(pinCard, Priority.ALWAYS);
+        HBox.setHgrow(padCard, Priority.ALWAYS);
 
 
         // Connected Devices Section (Monect style)
@@ -142,7 +153,7 @@ public class Dashboard extends Application {
         root.setPadding(new Insets(24));
         root.setStyle("-fx-background-color: #0b0f19;");
 
-        Scene scene = new Scene(root, 650, 520);
+        Scene scene = new Scene(root, 720, 530);
         stage.setTitle("CTRLX - PC Remote Receiver");
         stage.setScene(scene);
         stage.setMinWidth(580);

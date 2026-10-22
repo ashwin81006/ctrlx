@@ -1,8 +1,12 @@
 @echo off
 title CTRLX - PC Receiver
 echo Starting CTRLX PC Receiver and Dashboard...
-set "JAVA_HOME=C:\Program Files\Java\jdk-25"
-set "PATH=C:\Program Files\Java\jdk-25\bin;C:\Tools\apache-maven-3.9.16\bin;%PATH%"
+if exist "C:\Program Files\Java\jdk-25.0.4.1" (
+    set "JAVA_HOME=C:\Program Files\Java\jdk-25.0.4.1"
+) else if exist "C:\Program Files\Java\jdk-25" (
+    set "JAVA_HOME=C:\Program Files\Java\jdk-25"
+)
+set "PATH=%JAVA_HOME%\bin;%PATH%"
 cd /d "%~dp0pc-client"
 call mvn.cmd javafx:run
 if %ERRORLEVEL% NEQ 0 (

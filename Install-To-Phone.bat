@@ -5,9 +5,20 @@ echo       CTRLX Mobile Client - Build ^& Install
 echo ========================================================
 echo.
 
-set "JAVA_HOME=C:\Program Files\Android\openjdk\jdk-21.0.8"
-set "PATH=C:\Program Files\Android\openjdk\jdk-21.0.8\bin;%PATH%"
-set "ADB=C:\Users\Ashy\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+if exist "C:\Program Files\Java\jdk-25.0.4.1" (
+    set "JAVA_HOME=C:\Program Files\Java\jdk-25.0.4.1"
+) else if exist "C:\Program Files\Java\jdk-25" (
+    set "JAVA_HOME=C:\Program Files\Java\jdk-25"
+)
+set "PATH=%JAVA_HOME%\bin;%PATH%"
+
+if not defined ADB (
+    if exist "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" (
+        set "ADB=%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
+    ) else (
+        set "ADB=adb.exe"
+    )
+)
 
 echo [*] Building Android APK...
 cd /d "%~dp0mobile-client"
