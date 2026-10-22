@@ -149,11 +149,7 @@ public class Dashboard extends Application {
         stage.setMinHeight(480);
         stage.show();
 
-        stage.setOnCloseRequest(e -> {
-            if (uptimeTimeline != null) uptimeTimeline.stop();
-            if (statsTimeline != null) statsTimeline.stop();
-            disconnect();
-        });
+        stage.setOnCloseRequest(e -> shutdownAndExit());
 
         // Live ticking stopwatch timer for Server Uptime (updates every 1 second)
         uptimeTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
@@ -430,13 +426,20 @@ public class Dashboard extends Application {
 
     @Override
     public void stop() {
-        if (uptimeTimeline != null) {
-            uptimeTimeline.stop();
+        shutdownAndExit();
+    }
+
+    private void shutdownAndExit() {
+        try {
+            if (uptimeTimeline != null) uptimeTimeline.stop();
+            if (statsTimeline != null) statsTimeline.stop();
+            disconnect();
+            Server.stop();
+        } catch (Exception ignored) {
+        } finally {
+            Platform.exit();
+            System.exit(0);
         }
-        if (statsTimeline != null) {
-            statsTimeline.stop();
-        }
-        disconnect();
     }
 
     private String findAdminToken() {

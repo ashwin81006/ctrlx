@@ -45,6 +45,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends Activity {
     private static final String PREFS_NAME = "ctrlx_mobile_prefs";
@@ -99,6 +101,7 @@ public class MainActivity extends Activity {
 
     private final Object sendLock = new Object();
     private final ExecutorService senderExecutor = Executors.newSingleThreadExecutor();
+    private ScheduledExecutorService heartbeatScheduler;
     private Vibrator vibrator;
 
     // Touchpad gesture tracking
@@ -149,7 +152,12 @@ public class MainActivity extends Activity {
     }
 
     private void setupNavigation() {
-        navTabConnect.setOnClickListener(v -> switchTab(Tab.CONNECT));
+        navTabConnect.setOnClickListener(v -> {
+            switchTab(Tab.CONNECT);
+            if (!connected && !connecting) {
+                startLanScan();
+            }
+        });
 
         navTabTouchpad.setOnClickListener(v -> {
             if (!authenticated) {
@@ -289,6 +297,10 @@ public class MainActivity extends Activity {
         if (connecting) {
             return;
         }
+
+        // Immediately clear previous list so stale/offline PCs never linger
+        discoveredServers.clear();
+        updateDiscoveredPcCards();
 
         scanProgress.setVisibility(View.VISIBLE);
         scanStatusText.setText("Scanning local Wi-Fi for PCs...");
@@ -482,28 +494,15 @@ public class MainActivity extends Activity {
                     }
                 }
 
-                if (connected && socket == newSocket && !voluntaryDisconnect) {
-                    throw new Exception("Connection closed.");
+                // If loop finished because readLine() returned null, server closed socket
+                if (socket == newSocket && !voluntaryDisconnect) {
+                    onConnectionLost("Connection closed by " + hostName);
                 }
 
             } catch (Exception e) {
-                runOnUiThread(() -> {
-                    if (pinDialog != null && pinDialog.isShowing()) {
-                        pinDialog.dismiss();
-                    }
-                    if (voluntaryDisconnect) {
-                        scanStatusText.setText("Disconnected. Ready to connect.");
-                        scanStatusText.setTextColor(Color.parseColor("#94A3B8"));
-                    } else {
-                        if (currentTab != Tab.CONNECT) {
-                            Toast.makeText(MainActivity.this, "Disconnected from " + hostName, Toast.LENGTH_SHORT).show();
-                            switchTab(Tab.CONNECT);
-                        }
-                        scanStatusText.setText("Disconnected from " + hostName + ".");
-                        scanStatusText.setTextColor(Color.parseColor("#94A3B8"));
-                    }
-                    updateDiscoveredPcCards();
-                });
+                if (!voluntaryDisconnect) {
+                    onConnectionLost("Could not connect to " + hostName);
+                }
             } finally {
                 try {
                     newSocket.close();
@@ -515,9 +514,10 @@ public class MainActivity extends Activity {
                     out = null;
                     connected = false;
                     authenticated = false;
+                    targetPcIp = null;
+                    stopHeartbeat();
                 }
                 connecting = false;
-                runOnUiThread(this::updateDiscoveredPcCards);
             }
         }).start();
     }
@@ -528,8 +528,52 @@ public class MainActivity extends Activity {
         touchpadPcBadge.setText("● Connected: " + hostName);
         updateDiscoveredPcCards();
 
+        startHeartbeat();
+
         // Jump directly to Touchpad controller upon connection!
         switchTab(Tab.TOUCHPAD);
+    }
+
+    private void startHeartbeat() {
+        stopHeartbeat();
+        heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
+        heartbeatScheduler.scheduleAtFixedRate(() -> {
+            if (!connected || socket == null || socket.isClosed()) {
+                onConnectionLost("Connection to PC lost");
+                return;
+            }
+            synchronized (sendLock) {
+                if (out != null) {
+                    out.println("{\"type\":\"PING\"}");
+                    if (out.checkError()) {
+                        onConnectionLost("Connection to PC lost");
+                    }
+                }
+            }
+        }, 2, 2, TimeUnit.SECONDS);
+    }
+
+    private void stopHeartbeat() {
+        if (heartbeatScheduler != null) {
+            try {
+                heartbeatScheduler.shutdownNow();
+            } catch (Exception ignored) {
+            }
+            heartbeatScheduler = null;
+        }
+    }
+
+    private void onConnectionLost(String reason) {
+        runOnUiThread(() -> {
+            disconnectFromPC();
+            if (currentTab != Tab.CONNECT) {
+                switchTab(Tab.CONNECT);
+                Toast.makeText(MainActivity.this, reason, Toast.LENGTH_SHORT).show();
+            }
+            scanStatusText.setText(reason);
+            scanStatusText.setTextColor(Color.parseColor("#94A3B8"));
+            startLanScan();
+        });
     }
 
     private void promptForPin(String hostName) {
@@ -576,7 +620,7 @@ public class MainActivity extends Activity {
             voluntaryDisconnect = true;
             disconnectFromPC();
             switchTab(Tab.CONNECT);
-            updateDiscoveredPcCards();
+            startLanScan();
         });
 
         builder.setCancelable(false);
@@ -594,6 +638,9 @@ public class MainActivity extends Activity {
                         verifyMsg.put("deviceId", SecurityUtils.getDeviceId(MainActivity.this));
                         verifyMsg.put("pin", pin);
                         out.println(verifyMsg.toString());
+                        if (out.checkError()) {
+                            onConnectionLost("Connection to PC lost");
+                        }
                     }
                 }
             } catch (Exception ignored) {
@@ -692,6 +739,9 @@ public class MainActivity extends Activity {
                 synchronized (sendLock) {
                     if (out != null) {
                         out.println("{\"type\":\"MOUSE_MOVE\",\"dx\":" + dx + ",\"dy\":" + dy + "}");
+                        if (out.checkError()) {
+                            onConnectionLost("Connection to PC lost");
+                        }
                     }
                 }
             } catch (Exception ignored) {
@@ -708,6 +758,9 @@ public class MainActivity extends Activity {
                 synchronized (sendLock) {
                     if (out != null) {
                         out.println("{\"type\":\"MOUSE_CLICK\",\"button\":\"" + button + "\",\"action\":\"CLICK\"}");
+                        if (out.checkError()) {
+                            onConnectionLost("Connection to PC lost");
+                        }
                     }
                 }
             } catch (Exception ignored) {
@@ -724,6 +777,9 @@ public class MainActivity extends Activity {
                 synchronized (sendLock) {
                     if (out != null) {
                         out.println("{\"type\":\"MOUSE_SCROLL\",\"amount\":" + amount + "}");
+                        if (out.checkError()) {
+                            onConnectionLost("Connection to PC lost");
+                        }
                     }
                 }
             } catch (Exception ignored) {
@@ -736,7 +792,16 @@ public class MainActivity extends Activity {
         connecting = false;
         connected = false;
         authenticated = false;
+        targetPcIp = null;
+        stopHeartbeat();
         SecurityUtils.clearAuthToken(this);
+
+        if (pinDialog != null && pinDialog.isShowing()) {
+            try {
+                pinDialog.dismiss();
+            } catch (Exception ignored) {
+            }
+        }
 
         Socket current = socket;
         socket = null;
@@ -750,7 +815,10 @@ public class MainActivity extends Activity {
                 }
             }).start();
         }
-        runOnUiThread(this::updateDiscoveredPcCards);
+        runOnUiThread(() -> {
+            discoveredServers.clear();
+            updateDiscoveredPcCards();
+        });
     }
 
     private void triggerHaptic() {
@@ -777,6 +845,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        stopHeartbeat();
         disconnectFromPC();
         senderExecutor.shutdown();
         super.onDestroy();

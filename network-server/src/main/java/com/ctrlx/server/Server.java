@@ -52,6 +52,37 @@ public class Server {
 
     public static final Map<String, ActiveClient> activeClients = new ConcurrentHashMap<>();
 
+    private static volatile ServerSocket serverSocket;
+    private static volatile DatagramSocket discoverySocket;
+    private static volatile boolean running = false;
+
+    public static synchronized void stop() {
+        running = false;
+        try {
+            if (discoverySocket != null && !discoverySocket.isClosed()) {
+                discoverySocket.close();
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+            }
+        } catch (Exception ignored) {
+        }
+
+        for (ActiveClient c : activeClients.values()) {
+            try {
+                if (c.socket != null && !c.socket.isClosed()) {
+                    c.socket.close();
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        activeClients.clear();
+        adminWriters.clear();
+    }
+
     public static void main(String[] args) throws Exception {
         pairingManager.addListener((deviceId, deviceName, pin) -> {
             System.out.printf("[CTRLX PAIRING] PIN for '%s' (%s): %s (Valid for 60s)%n",
@@ -66,26 +97,37 @@ public class Server {
             broadcastToAdmins(notif);
         });
 
+        running = true;
         startDiscoveryService(DISCOVERY_PORT);
 
-        try (ServerSocket server = new ServerSocket(PORT)) {
+        try {
+            ServerSocket server = new ServerSocket(PORT);
+            serverSocket = server;
             System.out.println("CTRLX server running on port " + PORT);
             System.out.println("Auto-discovery beacon listening on UDP port " + DISCOVERY_PORT);
 
-            while (true) {
+            while (running && !server.isClosed()) {
                 Socket socket = server.accept();
                 pool.submit(() -> handleClient(socket));
             }
+        } catch (Exception e) {
+            if (running) {
+                System.err.println("Notice: Server loop exited: " + e.getMessage());
+            }
+        } finally {
+            stop();
         }
     }
 
     public static void startDiscoveryService(int port) {
         Thread t = new Thread(() -> {
-            try (DatagramSocket socket = new DatagramSocket(port)) {
+            try {
+                DatagramSocket socket = new DatagramSocket(port);
+                discoverySocket = socket;
                 socket.setBroadcast(true);
                 byte[] buffer = new byte[1024];
 
-                while (true) {
+                while (running && !socket.isClosed()) {
                     DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                     socket.receive(packet);
 
@@ -115,7 +157,9 @@ public class Server {
                     }
                 }
             } catch (Exception e) {
-                System.err.println("Notice: Discovery service stopped: " + e.getMessage());
+                if (running) {
+                    System.err.println("Notice: Discovery service stopped: " + e.getMessage());
+                }
             }
         });
         t.setDaemon(true);
