@@ -9,7 +9,7 @@ import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
-import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -36,20 +36,15 @@ public class GamepadController {
     private final Robot robot;
     private final Dimension screenSize;
     private final boolean available;
+    private final ViGEmBridge vigemBridge = new ViGEmBridge();
 
     private volatile Profile currentProfile = Profile.FPS_ACTION;
     private final Set<Integer> heldKeyCodes = ConcurrentHashMap.newKeySet();
     private final Set<Integer> heldMouseMasks = ConcurrentHashMap.newKeySet();
 
     // Analog stick states (-1.0 to 1.0)
-    private volatile float leftStickX = 0f;
-    private volatile float leftStickY = 0f;
     private volatile float rightStickX = 0f;
     private volatile float rightStickY = 0f;
-
-    // Trigger states (0.0 to 1.0)
-    private volatile float leftTrigger = 0f;
-    private volatile float rightTrigger = 0f;
 
     // Currently active WASD direction keys from left stick
     private int currentLeftStickHorizontalKey = 0;
@@ -83,11 +78,108 @@ public class GamepadController {
         this.screenSize = d != null ? d : new Dimension(1920, 1080);
         this.available = ok;
 
+        // Note: The virtual Xbox 360 controller is only activated when activate() is called (upon opening Gamepad tab).
         startAimingLoop();
     }
 
+    // Active player slots (1..4) mapped by client identifier
+    private final Map<String, Integer> clientToSlot = new ConcurrentHashMap<>();
+    private final Map<Integer, String> slotToClient = new ConcurrentHashMap<>();
+    private final java.util.concurrent.atomic.AtomicBoolean bridgeStarting = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    public synchronized int allocateSlot(String clientId) {
+        if (clientId == null || clientId.trim().isEmpty()) {
+            clientId = "default";
+        }
+        if (clientToSlot.containsKey(clientId)) {
+            int slot = clientToSlot.get(clientId);
+            if (vigemBridge.isReady()) {
+                vigemBridge.connectSlot(slot);
+            } else {
+                ensureBridgeStarted();
+            }
+            return slot;
+        }
+
+        // Allocate lowest free slot (1 to 4)
+        int chosenSlot = 1;
+        for (int i = 1; i <= 4; i++) {
+            if (!slotToClient.containsKey(i)) {
+                chosenSlot = i;
+                break;
+            }
+        }
+
+        clientToSlot.put(clientId, chosenSlot);
+        slotToClient.put(chosenSlot, clientId);
+
+        ensureBridgeStarted();
+        if (vigemBridge.isReady()) {
+            vigemBridge.connectSlot(chosenSlot);
+        }
+        System.out.println("GamepadController: Allocated Player " + chosenSlot + " for client: " + clientId);
+        return chosenSlot;
+    }
+
+    public synchronized void releaseSlot(String clientId) {
+        if (clientId == null || clientId.trim().isEmpty()) {
+            clientId = "default";
+        }
+        Integer slot = clientToSlot.remove(clientId);
+        if (slot != null) {
+            slotToClient.remove(slot);
+            if (vigemBridge.isReady()) {
+                vigemBridge.resetSlot(slot);
+                vigemBridge.disconnectSlot(slot);
+            }
+            System.out.println("GamepadController: Released Player " + slot + " for client: " + clientId);
+        }
+
+        if (slotToClient.isEmpty()) {
+            resetAll();
+        }
+    }
+
+    public int getSlotForClient(String clientId) {
+        if (clientId == null) return 1;
+        Integer slot = clientToSlot.get(clientId);
+        return slot != null ? slot : 1;
+    }
+
+    public void activate() {
+        allocateSlot("default");
+    }
+
+    public void deactivate() {
+        releaseSlot("default");
+    }
+
+    public void ensureBridgeStarted() {
+        if (!vigemBridge.isReady() && bridgeStarting.compareAndSet(false, true)) {
+            Thread t = new Thread(() -> {
+                try {
+                    boolean ok = vigemBridge.start();
+                    if (ok) {
+                        // Connect all active slots
+                        for (int s : slotToClient.keySet()) {
+                            vigemBridge.connectSlot(s);
+                        }
+                    }
+                } finally {
+                    bridgeStarting.set(false);
+                }
+            }, "ViGEmBridgeStarter");
+            t.setDaemon(true);
+            t.start();
+        }
+    }
+
+    public boolean isVirtualControllerActive() {
+        return vigemBridge.isReady();
+    }
+
     public boolean isAvailable() {
-        return available;
+        return available || vigemBridge.isReady();
     }
 
     public Profile getCurrentProfile() {
@@ -117,21 +209,45 @@ public class GamepadController {
     }
 
     /**
-     * Handles Xbox button state changes (DOWN or UP).
+     * Handles Xbox button state changes for a specific controller slot (1..4).
      */
-    public synchronized void handleButton(String button, String state) {
-        if (!available || robot == null || button == null) {
+    public synchronized void handleButton(int slot, String button, String state) {
+        if (button == null) {
             return;
         }
         boolean isDown = "DOWN".equalsIgnoreCase(state);
         String btn = button.toUpperCase().trim();
 
+        // 1. Direct hardware Xbox 360 controller emulation via ViGEmBus
+        if (vigemBridge.isReady()) {
+            if ("LT".equals(btn)) {
+                vigemBridge.sendTrigger(slot, "LT", isDown ? 1.0f : 0.0f);
+            } else if ("RT".equals(btn)) {
+                vigemBridge.sendTrigger(slot, "RT", isDown ? 1.0f : 0.0f);
+            } else {
+                vigemBridge.sendButton(slot, btn, isDown);
+            }
+            return;
+        }
+
+        ensureBridgeStarted();
+
+        // If ViGEm virtual controller is supported on this PC, do NOT leak keyboard keys into games!
+        if (vigemBridge.isBridgeExecutableFound()) {
+            return;
+        }
+
+        // 2. Fallback to Keyboard / Mouse Robot ONLY if ViGEm driver is absent and only for Player 1
+        if (slot > 1 || !available || robot == null) {
+            return;
+        }
+
         // Special handling for triggers passed as button clicks
         if ("LT".equals(btn)) {
-            handleTrigger("LT", isDown ? 1.0f : 0.0f);
+            handleTrigger(1, "LT", isDown ? 1.0f : 0.0f);
             return;
         } else if ("RT".equals(btn)) {
-            handleTrigger("RT", isDown ? 1.0f : 0.0f);
+            handleTrigger(1, "RT", isDown ? 1.0f : 0.0f);
             return;
         }
 
@@ -162,18 +278,39 @@ public class GamepadController {
         }
     }
 
+    public synchronized void handleButton(String button, String state) {
+        handleButton(1, button, state);
+    }
+
     /**
-     * Handles analog trigger pressure (0.0 to 1.0).
+     * Handles analog trigger pressure for a specific controller slot (1..4).
      */
-    public synchronized void handleTrigger(String trigger, float value) {
-        if (!available || robot == null || trigger == null) {
+    public synchronized void handleTrigger(int slot, String trigger, float value) {
+        if (trigger == null) {
             return;
         }
         value = Math.max(0f, Math.min(1f, value));
+
+        // 1. Direct hardware Xbox 360 controller emulation via ViGEmBus
+        if (vigemBridge.isReady()) {
+            vigemBridge.sendTrigger(slot, trigger.toUpperCase().trim(), value);
+            return;
+        }
+
+        ensureBridgeStarted();
+
+        // If ViGEm virtual controller is supported on this PC, do NOT leak keyboard keys into games!
+        if (vigemBridge.isBridgeExecutableFound()) {
+            return;
+        }
+
+        // 2. Fallback to Keyboard / Mouse Robot ONLY if ViGEm driver is absent and only for Player 1
+        if (slot > 1 || !available || robot == null) {
+            return;
+        }
         boolean pressed = value > 0.25f;
 
         if ("LT".equalsIgnoreCase(trigger)) {
-            leftTrigger = value;
             if (currentProfile == Profile.FPS_ACTION) {
                 // Right Mouse Button (Aim Down Sights)
                 setMouseButtonState(InputEvent.BUTTON3_DOWN_MASK, pressed);
@@ -184,7 +321,6 @@ public class GamepadController {
                 setKeyState(KeyEvent.VK_D, pressed);
             }
         } else if ("RT".equalsIgnoreCase(trigger)) {
-            rightTrigger = value;
             if (currentProfile == Profile.FPS_ACTION) {
                 // Left Mouse Button (Fire / Attack)
                 setMouseButtonState(InputEvent.BUTTON1_DOWN_MASK, pressed);
@@ -197,24 +333,48 @@ public class GamepadController {
         }
     }
 
+    public synchronized void handleTrigger(String trigger, float value) {
+        handleTrigger(1, trigger, value);
+    }
+
     /**
-     * Handles analog stick coordinates (-1.0 to 1.0).
+     * Handles analog stick coordinates for a specific controller slot (1..4).
      */
-    public synchronized void handleAxis(String stick, float x, float y) {
-        if (!available || robot == null || stick == null) {
+    public synchronized void handleAxis(int slot, String stick, float x, float y) {
+        if (stick == null) {
             return;
         }
         x = Math.max(-1.0f, Math.min(1.0f, x));
         y = Math.max(-1.0f, Math.min(1.0f, y));
 
+        // 1. Direct hardware Xbox 360 controller emulation via ViGEmBus
+        if (vigemBridge.isReady()) {
+            vigemBridge.sendAxis(slot, stick.toUpperCase().trim(), x, y);
+            return;
+        }
+
+        ensureBridgeStarted();
+
+        // If ViGEm virtual controller is supported on this PC, do NOT leak keyboard keys into games!
+        if (vigemBridge.isBridgeExecutableFound()) {
+            return;
+        }
+
+        // 2. Fallback to Keyboard / Mouse Robot ONLY if ViGEm driver is absent and only for Player 1
+        if (slot > 1 || !available || robot == null) {
+            return;
+        }
+
         if ("LEFT".equalsIgnoreCase(stick)) {
-            leftStickX = x;
-            leftStickY = y;
             updateLeftStickKeys(x, y);
         } else if ("RIGHT".equalsIgnoreCase(stick)) {
             rightStickX = x;
             rightStickY = y;
         }
+    }
+
+    public synchronized void handleAxis(String stick, float x, float y) {
+        handleAxis(1, stick, x, y);
     }
 
     /**
@@ -396,39 +556,35 @@ public class GamepadController {
      * Safely releases all held keys and mouse buttons.
      */
     public synchronized void resetAll() {
-        if (!available || robot == null) {
-            heldKeyCodes.clear();
-            heldMouseMasks.clear();
-            return;
+        if (vigemBridge.isReady()) {
+            vigemBridge.reset();
         }
 
-        leftStickX = 0f;
-        leftStickY = 0f;
         rightStickX = 0f;
         rightStickY = 0f;
-        leftTrigger = 0f;
-        rightTrigger = 0f;
         currentLeftStickHorizontalKey = 0;
         currentLeftStickVerticalKey = 0;
 
-        for (int code : heldKeyCodes) {
-            try {
-                robot.keyRelease(code);
-            } catch (Exception ignored) {
+        if (available && robot != null) {
+            for (int code : heldKeyCodes) {
+                try {
+                    robot.keyRelease(code);
+                } catch (Exception ignored) {
+                }
+            }
+            for (int mask : heldMouseMasks) {
+                try {
+                    robot.mouseRelease(mask);
+                } catch (Exception ignored) {
+                }
             }
         }
         heldKeyCodes.clear();
-
-        for (int mask : heldMouseMasks) {
-            try {
-                robot.mouseRelease(mask);
-            } catch (Exception ignored) {
-            }
-        }
         heldMouseMasks.clear();
     }
 
     public void shutdown() {
+        vigemBridge.stop();
         resetAll();
         if (aimingTask != null) {
             aimingTask.cancel(true);

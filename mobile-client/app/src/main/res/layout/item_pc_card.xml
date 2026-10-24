@@ -38,8 +38,8 @@
             android:id="@+id/cardPcStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Wi-Fi Receiver • Tap to Connect"
-            android:textColor="#34D399"
+            android:text="Ready to connect"
+            android:textColor="#94A3B8"
             android:textSize="13sp" />
 
     </LinearLayout>
@@ -48,8 +48,8 @@
         android:id="@+id/cardConnectBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="CONNECT ›"
-        android:textColor="#2563EB"
+        android:text="CONNECT"
+        android:textColor="#38BDF8"
         android:textSize="13sp"
         android:textStyle="bold" />
 

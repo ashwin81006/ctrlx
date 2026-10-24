@@ -21,10 +21,7 @@ public class JoystickView extends View {
 
     private Paint basePaint;
     private Paint baseRingPaint;
-    private Paint crosshairPaint;
     private Paint hatPaint;
-    private Paint hatRimPaint;
-    private Paint hatCenterPaint;
 
     private float centerX = 0f;
     private float centerY = 0f;
@@ -54,32 +51,17 @@ public class JoystickView extends View {
 
     private void init() {
         basePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        basePaint.setColor(Color.parseColor("#0F172A"));
+        basePaint.setColor(Color.parseColor("#070E1A"));
         basePaint.setStyle(Paint.Style.FILL);
 
         baseRingPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        baseRingPaint.setColor(Color.parseColor("#334155"));
+        baseRingPaint.setColor(Color.parseColor("#155E75"));
         baseRingPaint.setStyle(Paint.Style.STROKE);
-        baseRingPaint.setStrokeWidth(4f);
-
-        crosshairPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        crosshairPaint.setColor(Color.parseColor("#1E293B"));
-        crosshairPaint.setStyle(Paint.Style.STROKE);
-        crosshairPaint.setStrokeWidth(2f);
+        baseRingPaint.setStrokeWidth(4.5f);
 
         hatPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        hatPaint.setColor(Color.parseColor("#00E5FF"));
         hatPaint.setStyle(Paint.Style.FILL);
-
-        hatRimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        hatRimPaint.setColor(Color.parseColor("#475569"));
-        hatRimPaint.setStyle(Paint.Style.STROKE);
-        hatRimPaint.setStrokeWidth(3f);
-
-        hatCenterPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        hatCenterPaint.setColor(Color.parseColor("#94A3B8"));
-        hatCenterPaint.setTextSize(26f);
-        hatCenterPaint.setTextAlign(Paint.Align.CENTER);
-        hatCenterPaint.setFakeBoldText(true);
     }
 
     public void setLabel(String label) {
@@ -96,8 +78,8 @@ public class JoystickView extends View {
         super.onSizeChanged(w, h, oldw, oldh);
         centerX = w / 2f;
         centerY = h / 2f;
-        baseRadius = Math.min(w, h) * 0.44f;
-        hatRadius = baseRadius * 0.45f;
+        baseRadius = Math.min(w, h) * 0.46f;
+        hatRadius = baseRadius * 0.35f;
         hatX = centerX;
         hatY = centerY;
     }
@@ -106,34 +88,12 @@ public class JoystickView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        // Outer base circle
+        // Outer base circle with thin cyan border
         canvas.drawCircle(centerX, centerY, baseRadius, basePaint);
         canvas.drawCircle(centerX, centerY, baseRadius, baseRingPaint);
 
-        // Center crosshair / guide notches
-        float notch = baseRadius * 0.2f;
-        canvas.drawLine(centerX - notch, centerY, centerX + notch, centerY, crosshairPaint);
-        canvas.drawLine(centerX, centerY - notch, centerX, centerY + notch, crosshairPaint);
-
-        // Thumbstick hat with subtle radial gradient
-        RadialGradient hatGradient = new RadialGradient(
-                hatX, hatY - hatRadius * 0.3f, hatRadius * 1.2f,
-                Color.parseColor("#334155"), Color.parseColor("#1E293B"),
-                Shader.TileMode.CLAMP);
-        hatPaint.setShader(hatGradient);
-
+        // Solid vibrant cyan thumbstick hat
         canvas.drawCircle(hatX, hatY, hatRadius, hatPaint);
-        canvas.drawCircle(hatX, hatY, hatRadius, hatRimPaint);
-
-        // Inner textured grip ring
-        canvas.drawCircle(hatX, hatY, hatRadius * 0.65f, crosshairPaint);
-
-        // Hat label (e.g. LS / RS)
-        if (!label.isEmpty()) {
-            Paint.FontMetrics fm = hatCenterPaint.getFontMetrics();
-            float textOffset = (fm.descent + fm.ascent) / 2f;
-            canvas.drawText(label, hatX, hatY - textOffset, hatCenterPaint);
-        }
     }
 
     @Override
@@ -195,7 +155,7 @@ public class JoystickView extends View {
         float dx = x - centerX;
         float dy = y - centerY;
         float distance = (float) Math.hypot(dx, dy);
-        float maxTravel = baseRadius - hatRadius * 0.35f;
+        float maxTravel = baseRadius - hatRadius;
 
         if (distance <= maxTravel) {
             hatX = x;

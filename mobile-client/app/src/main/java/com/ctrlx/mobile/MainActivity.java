@@ -16,6 +16,10 @@ import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -42,8 +46,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -104,10 +110,6 @@ public class MainActivity extends Activity {
     private Button btnDpadUp, btnDpadLeft, btnDpadRight, btnDpadDown, btnL3;
     private Button btnY, btnX, btnB, btnA, btnR3;
 
-    // Gamepad Profiles & State
-    private int currentProfileIndex = 0;
-    private final String[] profileNames = {"FPS / Action ▾", "Racing / Driving ▾", "Retro / 2D ▾"};
-    private final String[] profileCodes = {"FPS", "RACING", "RETRO"};
     private boolean isLandscape = false;
 
     // Networking & State
@@ -128,6 +130,22 @@ public class MainActivity extends Activity {
     private ScheduledExecutorService heartbeatScheduler;
     private Vibrator vibrator;
 
+    // Coalescing state for ultra-low-latency mouse movement
+    private final java.util.concurrent.atomic.AtomicInteger pendingDx = new java.util.concurrent.atomic.AtomicInteger(0);
+    private final java.util.concurrent.atomic.AtomicInteger pendingDy = new java.util.concurrent.atomic.AtomicInteger(0);
+    private final java.util.concurrent.atomic.AtomicBoolean mouseDrainScheduled = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    // Coalescing state for ultra-low-latency gamepad sticks
+    private volatile float latestLeftX = 0f;
+    private volatile float latestLeftY = 0f;
+    private final java.util.concurrent.atomic.AtomicBoolean leftStickDirty = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private final java.util.concurrent.atomic.AtomicBoolean leftStickDrainScheduled = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    private volatile float latestRightX = 0f;
+    private volatile float latestRightY = 0f;
+    private final java.util.concurrent.atomic.AtomicBoolean rightStickDirty = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private final java.util.concurrent.atomic.AtomicBoolean rightStickDrainScheduled = new java.util.concurrent.atomic.AtomicBoolean(false);
+
     // Touchpad gesture tracking
     private float lastX, lastY;
     private float downX, downY;
@@ -136,8 +154,12 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        hideSystemUI();
 
         bindViews();
         setupNavigation();
@@ -148,6 +170,42 @@ public class MainActivity extends Activity {
         // Open on Connect tab (scan and show available PCs, do NOT auto-connect)
         switchTab(Tab.CONNECT);
         startLanScan();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        hideSystemUI();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            hideSystemUI();
+        }
+    }
+
+    private void hideSystemUI() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                WindowInsetsController controller = getWindow().getInsetsController();
+                if (controller != null) {
+                    controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                    controller.setSystemBarsBehavior(
+                            WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                }
+            }
+            View decorView = getWindow().getDecorView();
+            int flags = View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN;
+            decorView.setSystemUiVisibility(flags);
+        } catch (Exception ignored) {
+        }
     }
 
     private void bindViews() {
@@ -185,8 +243,10 @@ public class MainActivity extends Activity {
         gamepadBackBtn = findViewById(R.id.gamepadBackBtn);
         leftStick = findViewById(R.id.leftStick);
         rightStick = findViewById(R.id.rightStick);
-        if (leftStick != null) leftStick.setLabel("LS");
-        if (rightStick != null) rightStick.setLabel("RS");
+        if (leftStick != null)
+            leftStick.setLabel("LS");
+        if (rightStick != null)
+            rightStick.setLabel("RS");
 
         btnLT = findViewById(R.id.btnLT);
         btnLB = findViewById(R.id.btnLB);
@@ -235,6 +295,10 @@ public class MainActivity extends Activity {
 
     private void switchTab(Tab tab) {
         currentTab = tab;
+        if (authenticated && out != null) {
+            String modeStr = (tab == Tab.GAMEPAD) ? "GAMEPAD" : (tab == Tab.TOUCHPAD ? "TOUCHPAD" : "CONNECT");
+            sendModeChange(modeStr);
+        }
         runOnUiThread(() -> {
             boolean isGamepad = (tab == Tab.GAMEPAD);
 
@@ -242,14 +306,17 @@ public class MainActivity extends Activity {
             layoutTouchpad.setVisibility(tab == Tab.TOUCHPAD ? View.VISIBLE : View.GONE);
             layoutGamepad.setVisibility(isGamepad ? View.VISIBLE : View.GONE);
 
-            // Hide bottom nav bar in horizontal gamepad mode for full-screen console immersion
+            // Hide bottom nav bar in horizontal gamepad mode for full-screen console
+            // immersion
             if (bottomNavBar != null) {
                 bottomNavBar.setVisibility(isGamepad ? View.GONE : View.VISIBLE);
             }
 
             // Update bottom nav bar highlight
-            navLabelConnect.setTextColor(tab == Tab.CONNECT ? Color.parseColor("#38BDF8") : Color.parseColor("#64748B"));
-            navLabelTouchpad.setTextColor(tab == Tab.TOUCHPAD ? Color.parseColor("#38BDF8") : Color.parseColor("#64748B"));
+            navLabelConnect
+                    .setTextColor(tab == Tab.CONNECT ? Color.parseColor("#38BDF8") : Color.parseColor("#64748B"));
+            navLabelTouchpad
+                    .setTextColor(tab == Tab.TOUCHPAD ? Color.parseColor("#38BDF8") : Color.parseColor("#64748B"));
             navLabelGamepad.setTextColor(isGamepad ? Color.parseColor("#38BDF8") : Color.parseColor("#64748B"));
 
             if (isGamepad) {
@@ -264,6 +331,7 @@ public class MainActivity extends Activity {
                 isLandscape = false;
                 setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
             }
+            hideSystemUI();
         });
     }
 
@@ -325,16 +393,6 @@ public class MainActivity extends Activity {
             rightStick.setOnJoystickMoveListener((x, y) -> sendGamepadAxis("RIGHT", x, y));
         }
 
-        // Profile switcher button (FPS / Racing / Retro)
-        if (gamepadProfileBtn != null) {
-            gamepadProfileBtn.setOnClickListener(v -> {
-                currentProfileIndex = (currentProfileIndex + 1) % profileNames.length;
-                gamepadProfileBtn.setText(profileNames[currentProfileIndex]);
-                sendGamepadProfile(profileCodes[currentProfileIndex]);
-                triggerHaptic();
-                Toast.makeText(this, "Profile: " + profileNames[currentProfileIndex].replace(" ▾", ""), Toast.LENGTH_SHORT).show();
-            });
-        }
 
         // Back to Touchpad / Connect button
         if (gamepadBackBtn != null) {
@@ -359,18 +417,18 @@ public class MainActivity extends Activity {
 
     private void updateDiscoveredPcCards() {
         runOnUiThread(() -> {
-            if (discoveredPcList == null) return;
+            if (discoveredPcList == null)
+                return;
             discoveredPcList.removeAllViews();
             LayoutInflater inflater = LayoutInflater.from(this);
 
             if (discoveredServers.isEmpty()) {
-                scanStatusText.setText("No PC receiver found on your Wi-Fi.\nEnsure CTRLX is open on your PC.");
+                scanStatusText.setText("No PC found. Open CTRLX on your PC.");
                 scanStatusText.setTextColor(Color.parseColor("#94A3B8"));
                 return;
             }
 
-            int count = discoveredServers.size();
-            scanStatusText.setText(count + (count == 1 ? " PC receiver found on your Wi-Fi" : " PC receivers found on your Wi-Fi"));
+            scanStatusText.setText("Ready to connect. Tap your PC.");
             scanStatusText.setTextColor(Color.parseColor("#4ADE80"));
 
             for (Map.Entry<String, String> entry : discoveredServers.entrySet()) {
@@ -388,21 +446,21 @@ public class MainActivity extends Activity {
                 boolean isThisConnecting = connecting && ip.equals(targetPcIp);
 
                 if (isThisConnected) {
-                    cardPcStatus.setText(ip + " • Connected (Active)");
+                    cardPcStatus.setText("Connected • Choose Touchpad or Gamepad below");
                     cardPcStatus.setTextColor(Color.parseColor("#34D399"));
-                    cardConnectBtn.setText("OPEN ›");
-                    cardConnectBtn.setTextColor(Color.parseColor("#34D399"));
-                    card.setOnClickListener(v -> switchTab(Tab.TOUCHPAD));
+                    cardConnectBtn.setText("DISCONNECT");
+                    cardConnectBtn.setTextColor(Color.parseColor("#EF4444"));
+                    card.setOnClickListener(v -> disconnectFromPC());
                 } else if (isThisConnecting) {
-                    cardPcStatus.setText(ip + " • Connecting & Pairing...");
+                    cardPcStatus.setText("Connecting...");
                     cardPcStatus.setTextColor(Color.parseColor("#F59E0B"));
-                    cardConnectBtn.setText("PAIRING");
+                    cardConnectBtn.setText("CONNECTING");
                     cardConnectBtn.setTextColor(Color.parseColor("#F59E0B"));
                     card.setOnClickListener(null);
                 } else {
-                    cardPcStatus.setText(ip + " • Tap to Enter PIN & Connect");
+                    cardPcStatus.setText("Ready to connect");
                     cardPcStatus.setTextColor(Color.parseColor("#94A3B8"));
-                    cardConnectBtn.setText("CONNECT ›");
+                    cardConnectBtn.setText("CONNECT");
                     cardConnectBtn.setTextColor(Color.parseColor("#38BDF8"));
                     card.setOnClickListener(v -> {
                         if (connected || connecting) {
@@ -449,12 +507,8 @@ public class MainActivity extends Activity {
             return;
         }
 
-        // Immediately clear previous list so stale/offline PCs never linger
-        discoveredServers.clear();
-        updateDiscoveredPcCards();
-
         scanProgress.setVisibility(View.VISIBLE);
-        scanStatusText.setText("Scanning local Wi-Fi for PCs...");
+        scanStatusText.setText("Searching for your PC...");
         scanStatusText.setTextColor(Color.parseColor("#38BDF8"));
         rescanButton.setEnabled(false);
 
@@ -470,14 +524,74 @@ public class MainActivity extends Activity {
                     lock.acquire();
                 }
 
+                // Gather discovery targets: Subnet broadcasts + Global broadcast + Hotspot Host + Gateway + Last Known + mDNS
+                List<InetAddress> targets = new ArrayList<>(getBroadcastAddresses());
+                try {
+                    targets.add(InetAddress.getByName("255.255.255.255"));
+                } catch (Exception ignored) {
+                }
+                try {
+                    targets.add(InetAddress.getByName("192.168.137.1"));
+                } catch (Exception ignored) {
+                }
+                try {
+                    targets.add(InetAddress.getByName("192.168.43.1"));
+                } catch (Exception ignored) {
+                }
+
+                String gwIp = null;
+                if (wifi != null) {
+                    try {
+                        android.net.DhcpInfo dhcp = wifi.getDhcpInfo();
+                        if (dhcp != null && dhcp.gateway != 0) {
+                            int gw = dhcp.gateway;
+                            gwIp = String.format(java.util.Locale.US, "%d.%d.%d.%d",
+                                    (gw & 0xFF), ((gw >> 8) & 0xFF), ((gw >> 16) & 0xFF), ((gw >> 24) & 0xFF));
+                            targets.add(InetAddress.getByName(gwIp));
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+
+                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                String lastIp = prefs.getString(KEY_LAST_IP, null);
+                if (lastIp != null && !lastIp.isEmpty()) {
+                    try {
+                        targets.add(InetAddress.getByName(lastIp));
+                    } catch (Exception ignored) {
+                    }
+                }
+
+                // Resolve mDNS hostnames (resolves PC's IPv4 & IPv6 addresses on local Wi-Fi/Hotspot)
+                String lastPcName = prefs.getString(KEY_LAST_NAME, null);
+                Set<String> mDnsQueries = new LinkedHashSet<>();
+                if (lastPcName != null && !lastPcName.isEmpty()) {
+                    mDnsQueries.add(lastPcName + ".local");
+                }
+                mDnsQueries.add("Ashy-Victus.local");
+                mDnsQueries.add("windows-pc.local");
+
+                for (String hostQuery : mDnsQueries) {
+                    try {
+                        InetAddress[] resolved = InetAddress.getAllByName(hostQuery);
+                        for (InetAddress ra : resolved) {
+                            targets.add(ra);
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+                try {
+                    targets.add(InetAddress.getByName("127.0.0.1"));
+                } catch (Exception ignored) {
+                }
+
+                byte[] req = "{\"type\":\"CTRLX_DISCOVER\"}".getBytes(StandardCharsets.UTF_8);
+
                 try (DatagramSocket udpSocket = new DatagramSocket()) {
                     udpSocket.setBroadcast(true);
-                    udpSocket.setSoTimeout(300);
+                    udpSocket.setSoTimeout(400);
 
-                    byte[] req = "{\"type\":\"CTRLX_DISCOVER\"}".getBytes(StandardCharsets.UTF_8);
-
-                    // Send discovery packet to all subnet broadcast addresses
-                    List<InetAddress> targets = getBroadcastAddresses();
+                    // Wave 1: discovery ping
                     for (InetAddress target : targets) {
                         try {
                             DatagramPacket packet = new DatagramPacket(req, req.length, target, DISCOVERY_PORT);
@@ -486,26 +600,33 @@ public class MainActivity extends Activity {
                         }
                     }
 
-                    // Also broadcast to 255.255.255.255 as backup
-                    try {
-                        DatagramPacket globalPacket = new DatagramPacket(
-                                req, req.length, InetAddress.getByName("255.255.255.255"), DISCOVERY_PORT);
-                        udpSocket.send(globalPacket);
-                    } catch (Exception ignored) {
-                    }
-
-                    // Receive loop across all laptops on the network over a 1500ms window
-                    long deadline = System.currentTimeMillis() + 1500;
+                    // Receive loop across 2500ms window
+                    long deadline = System.currentTimeMillis() + 2500;
+                    boolean wave2Sent = false;
                     byte[] buf = new byte[1024];
 
                     while (System.currentTimeMillis() < deadline) {
+                        if (!wave2Sent && System.currentTimeMillis() > (deadline - 1500)) {
+                            wave2Sent = true;
+                            for (InetAddress target : targets) {
+                                try {
+                                    udpSocket.send(new DatagramPacket(req, req.length, target, DISCOVERY_PORT));
+                                } catch (Exception ignored) {
+                                }
+                            }
+                        }
+
                         try {
                             DatagramPacket responsePacket = new DatagramPacket(buf, buf.length);
                             udpSocket.receive(responsePacket);
 
-                            String respStr = new String(responsePacket.getData(), 0, responsePacket.getLength(), StandardCharsets.UTF_8);
+                            String respStr = new String(responsePacket.getData(), 0, responsePacket.getLength(),
+                                    StandardCharsets.UTF_8);
                             if (respStr.contains("CTRLX_SERVER")) {
                                 String foundIp = responsePacket.getAddress().getHostAddress();
+                                if (foundIp != null && foundIp.contains("%")) {
+                                    foundIp = foundIp.substring(0, foundIp.indexOf("%"));
+                                }
                                 String foundName = "Windows PC";
                                 try {
                                     JSONObject json = new JSONObject(respStr);
@@ -516,20 +637,19 @@ public class MainActivity extends Activity {
                                 }
                                 if (foundIp != null && !foundIp.isEmpty()) {
                                     foundServers.put(foundIp, foundName);
+                                    final String fIp = foundIp;
+                                    final String fName = foundName;
+                                    runOnUiThread(() -> {
+                                        discoveredServers.put(fIp, fName);
+                                        updateDiscoveredPcCards();
+                                    });
                                 }
                             }
                         } catch (SocketTimeoutException ignored) {
-                            // Timeout for this receive slice, continue until deadline
                         }
                     }
-
-                    // Check if localhost (127.0.0.1) is forwarded over USB (via adb reverse)
-                    try (Socket usbSocket = new Socket()) {
-                        usbSocket.connect(new InetSocketAddress("127.0.0.1", SERVER_PORT), 250);
-                        foundServers.put("127.0.0.1", "Windows PC (USB)");
-                    } catch (Exception ignored) {
-                    }
                 }
+
             } catch (Exception ignored) {
             } finally {
                 if (lock != null && lock.isHeld()) {
@@ -596,7 +716,8 @@ public class MainActivity extends Activity {
                 SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
                 prefs.edit().putString(KEY_LAST_IP, host).putString(KEY_LAST_NAME, hostName).apply();
 
-                // Clear any cached token: user requested mandatory PIN verification on every connect & reconnect
+                // Clear any cached token: user requested mandatory PIN verification on every
+                // connect & reconnect
                 SecurityUtils.clearAuthToken(MainActivity.this);
 
                 String deviceId = SecurityUtils.getDeviceId(MainActivity.this);
@@ -627,14 +748,24 @@ public class MainActivity extends Activity {
                             if (pinDialog != null && pinDialog.isShowing()) {
                                 pinDialog.dismiss();
                             }
-                            Toast.makeText(MainActivity.this, "Paired successfully with " + hostName, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity.this, "Paired successfully with " + hostName,
+                                    Toast.LENGTH_SHORT).show();
                             onConnectionSuccess(host, hostName);
+                        });
+                    } else if ("GAMEPAD_ASSIGNED".equals(type)) {
+                        int player = json.optInt("player", 1);
+                        runOnUiThread(() -> {
+                            if (btnXboxGuide != null) {
+                                btnXboxGuide.setText("P" + player);
+                            }
+                            Toast.makeText(MainActivity.this, "🎮 Connected as Player " + player, Toast.LENGTH_SHORT).show();
                         });
                     } else if ("ERROR".equals(type)) {
                         String code = json.optString("code");
                         if ("INVALID_PIN".equals(code)) {
                             runOnUiThread(() -> {
-                                Toast.makeText(MainActivity.this, "Incorrect PIN. Please re-enter.", Toast.LENGTH_LONG).show();
+                                Toast.makeText(MainActivity.this, "Incorrect PIN. Please re-enter.", Toast.LENGTH_LONG)
+                                        .show();
                                 promptForPin(hostName);
                             });
                         } else if ("TOO_MANY_ATTEMPTS".equals(code) || "PIN_EXPIRED".equals(code)) {
@@ -642,7 +773,8 @@ public class MainActivity extends Activity {
                                 if (pinDialog != null && pinDialog.isShowing()) {
                                     pinDialog.dismiss();
                                 }
-                                Toast.makeText(MainActivity.this, "Pairing expired. Tap to retry.", Toast.LENGTH_LONG).show();
+                                Toast.makeText(MainActivity.this, "Pairing expired. Tap to retry.", Toast.LENGTH_LONG)
+                                        .show();
                                 scanStatusText.setText("Pairing expired. Tap PC to retry.");
                                 scanStatusText.setTextColor(Color.parseColor("#EF4444"));
                                 updateDiscoveredPcCards();
@@ -681,14 +813,15 @@ public class MainActivity extends Activity {
     }
 
     private void onConnectionSuccess(String host, String hostName) {
-        scanStatusText.setText("Connected to " + hostName);
+        targetPcIp = host;
+        scanStatusText.setText("Connected to " + hostName + "!\nSelect Touchpad or Gamepad below.");
         scanStatusText.setTextColor(Color.parseColor("#34D399"));
         touchpadPcBadge.setText("● Connected: " + hostName);
         gamepadPcBadge.setText("🎮 " + hostName);
         updateDiscoveredPcCards();
 
-        // Jump directly to Gamepad controller upon connection!
-        switchTab(Tab.GAMEPAD);
+        // Keep user on the Connect hub page - user selects Touchpad or Gamepad below
+        switchTab(Tab.CONNECT);
     }
 
     private void promptForPin(String hostName) {
@@ -849,19 +982,38 @@ public class MainActivity extends Activity {
         if (!authenticated || out == null) {
             return;
         }
-        senderExecutor.submit(() -> {
-            try {
-                synchronized (sendLock) {
-                    if (out != null) {
-                        out.println("{\"type\":\"MOUSE_MOVE\",\"dx\":" + dx + ",\"dy\":" + dy + "}");
-                        if (out.checkError()) {
-                            onConnectionLost("Connection to PC lost");
+        pendingDx.addAndGet(dx);
+        pendingDy.addAndGet(dy);
+        if (mouseDrainScheduled.compareAndSet(false, true)) {
+            senderExecutor.submit(this::drainMouseMove);
+        }
+    }
+
+    private void drainMouseMove() {
+        try {
+            while (true) {
+                int dx = pendingDx.getAndSet(0);
+                int dy = pendingDy.getAndSet(0);
+                if (dx != 0 || dy != 0) {
+                    synchronized (sendLock) {
+                        if (out != null) {
+                            out.println("{\"type\":\"MOUSE_MOVE\",\"dx\":" + dx + ",\"dy\":" + dy + "}");
                         }
                     }
                 }
-            } catch (Exception ignored) {
+                if (pendingDx.get() == 0 && pendingDy.get() == 0) {
+                    mouseDrainScheduled.set(false);
+                    if (pendingDx.get() != 0 || pendingDy.get() != 0) {
+                        if (mouseDrainScheduled.compareAndSet(false, true)) {
+                            continue;
+                        }
+                    }
+                    break;
+                }
             }
-        });
+        } catch (Exception ignored) {
+            mouseDrainScheduled.set(false);
+        }
     }
 
     private void sendMouseClick(String button) {
@@ -873,9 +1025,6 @@ public class MainActivity extends Activity {
                 synchronized (sendLock) {
                     if (out != null) {
                         out.println("{\"type\":\"MOUSE_CLICK\",\"button\":\"" + button + "\",\"action\":\"CLICK\"}");
-                        if (out.checkError()) {
-                            onConnectionLost("Connection to PC lost");
-                        }
                     }
                 }
             } catch (Exception ignored) {
@@ -892,13 +1041,55 @@ public class MainActivity extends Activity {
                 synchronized (sendLock) {
                     if (out != null) {
                         out.println("{\"type\":\"MOUSE_SCROLL\",\"amount\":" + amount + "}");
-                        if (out.checkError()) {
-                            onConnectionLost("Connection to PC lost");
-                        }
                     }
                 }
             } catch (Exception ignored) {
             }
+        });
+    }
+
+    private synchronized void stopHeartbeat() {
+        if (heartbeatScheduler != null) {
+            heartbeatScheduler.shutdownNow();
+            heartbeatScheduler = null;
+        }
+    }
+
+    private void onConnectionLost(String reason) {
+        if (voluntaryDisconnect) {
+            return;
+        }
+
+        voluntaryDisconnect = true;
+        connected = false;
+        connecting = false;
+        authenticated = false;
+        targetPcIp = null;
+
+        stopHeartbeat();
+        SecurityUtils.clearAuthToken(this);
+
+        Socket current = socket;
+        socket = null;
+        out = null;
+
+        if (current != null) {
+            try {
+                current.close();
+            } catch (Exception ignored) {
+            }
+        }
+
+        runOnUiThread(() -> {
+            if (pinDialog != null && pinDialog.isShowing()) {
+                pinDialog.dismiss();
+            }
+
+            scanStatusText.setText(reason);
+            scanStatusText.setTextColor(Color.parseColor("#EF4444"));
+
+            switchTab(Tab.CONNECT);
+            updateDiscoveredPcCards();
         });
     }
 
@@ -950,7 +1141,8 @@ public class MainActivity extends Activity {
     }
 
     private void bindGamepadButton(Button btn, String buttonCode) {
-        if (btn == null) return;
+        if (btn == null)
+            return;
         btn.setOnTouchListener((v, event) -> {
             if (!authenticated) {
                 return false;
@@ -971,13 +1163,30 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void sendGamepadButton(String button, String state) {
-        if (!authenticated || out == null) return;
+    private void sendModeChange(String mode) {
+        if (!authenticated || out == null)
+            return;
         senderExecutor.submit(() -> {
             try {
                 synchronized (sendLock) {
                     if (out != null) {
-                        out.println("{\"type\":\"GAMEPAD_BUTTON\",\"button\":\"" + button + "\",\"state\":\"" + state + "\"}");
+                        out.println("{\"type\":\"MODE_CHANGE\",\"mode\":\"" + mode + "\"}");
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        });
+    }
+
+    private void sendGamepadButton(String button, String state) {
+        if (!authenticated || out == null)
+            return;
+        senderExecutor.submit(() -> {
+            try {
+                synchronized (sendLock) {
+                    if (out != null) {
+                        out.println("{\"type\":\"GAMEPAD_BUTTON\",\"button\":\"" + button + "\",\"state\":\"" + state
+                                + "\"}");
                     }
                 }
             } catch (Exception ignored) {
@@ -986,31 +1195,63 @@ public class MainActivity extends Activity {
     }
 
     private void sendGamepadAxis(String stick, float x, float y) {
-        if (!authenticated || out == null) return;
-        senderExecutor.submit(() -> {
-            try {
-                synchronized (sendLock) {
-                    if (out != null) {
-                        out.println("{\"type\":\"GAMEPAD_AXIS\",\"stick\":\"" + stick + "\",\"x\":" + x + ",\"y\":" + y + "}");
-                    }
-                }
-            } catch (Exception ignored) {
+        if (!authenticated || out == null)
+            return;
+        if ("LEFT".equalsIgnoreCase(stick)) {
+            latestLeftX = x;
+            latestLeftY = y;
+            leftStickDirty.set(true);
+            if (leftStickDrainScheduled.compareAndSet(false, true)) {
+                senderExecutor.submit(this::drainLeftStick);
             }
-        });
+        } else if ("RIGHT".equalsIgnoreCase(stick)) {
+            latestRightX = x;
+            latestRightY = y;
+            rightStickDirty.set(true);
+            if (rightStickDrainScheduled.compareAndSet(false, true)) {
+                senderExecutor.submit(this::drainRightStick);
+            }
+        }
     }
 
-    private void sendGamepadProfile(String profile) {
-        if (!authenticated || out == null) return;
-        senderExecutor.submit(() -> {
-            try {
+    private void drainLeftStick() {
+        try {
+            while (leftStickDirty.getAndSet(false)) {
+                float x = latestLeftX;
+                float y = latestLeftY;
                 synchronized (sendLock) {
                     if (out != null) {
-                        out.println("{\"type\":\"GAMEPAD_PROFILE\",\"profile\":\"" + profile + "\"}");
+                        out.println("{\"type\":\"GAMEPAD_AXIS\",\"stick\":\"LEFT\",\"x\":" + x + ",\"y\":" + y + "}");
                     }
                 }
-            } catch (Exception ignored) {
             }
-        });
+        } catch (Exception ignored) {
+        } finally {
+            leftStickDrainScheduled.set(false);
+            if (leftStickDirty.get() && leftStickDrainScheduled.compareAndSet(false, true)) {
+                senderExecutor.submit(this::drainLeftStick);
+            }
+        }
+    }
+
+    private void drainRightStick() {
+        try {
+            while (rightStickDirty.getAndSet(false)) {
+                float x = latestRightX;
+                float y = latestRightY;
+                synchronized (sendLock) {
+                    if (out != null) {
+                        out.println("{\"type\":\"GAMEPAD_AXIS\",\"stick\":\"RIGHT\",\"x\":" + x + ",\"y\":" + y + "}");
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        } finally {
+            rightStickDrainScheduled.set(false);
+            if (rightStickDirty.get() && rightStickDrainScheduled.compareAndSet(false, true)) {
+                senderExecutor.submit(this::drainRightStick);
+            }
+        }
     }
 
     @Override

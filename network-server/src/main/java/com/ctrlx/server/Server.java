@@ -60,6 +60,10 @@ public class Server {
     public static synchronized void stop() {
         running = false;
         try {
+            gamepadController.shutdown();
+        } catch (Exception ignored) {
+        }
+        try {
             if (discoverySocket != null && !discoverySocket.isClosed()) {
                 discoverySocket.close();
             }
@@ -109,6 +113,10 @@ public class Server {
 
             while (running && !server.isClosed()) {
                 Socket socket = server.accept();
+                try {
+                    socket.setTcpNoDelay(true);
+                } catch (Exception ignored) {
+                }
                 pool.submit(() -> handleClient(socket));
             }
         } catch (Exception e) {
@@ -118,6 +126,17 @@ public class Server {
         } finally {
             stop();
         }
+    }
+
+    public static String getLocalHostName() {
+        try {
+            String h = InetAddress.getLocalHost().getHostName();
+            if (h != null && !h.trim().isEmpty()) {
+                return h;
+            }
+        } catch (Exception ignored) {
+        }
+        return "Windows PC";
     }
 
     public static void startDiscoveryService(int port) {
@@ -137,15 +156,7 @@ public class Server {
                         JsonObject reply = new JsonObject();
                         reply.addProperty("type", "CTRLX_SERVER");
                         reply.addProperty("serverPort", PORT);
-                        String hostName = "Windows PC";
-                        try {
-                            String h = InetAddress.getLocalHost().getHostName();
-                            if (h != null && !h.trim().isEmpty()) {
-                                hostName = h;
-                            }
-                        } catch (Exception ignored) {
-                        }
-                        reply.addProperty("serverName", hostName);
+                        reply.addProperty("serverName", getLocalHostName());
 
                         byte[] replyBytes = reply.toString().getBytes(StandardCharsets.UTF_8);
                         DatagramPacket replyPacket = new DatagramPacket(
@@ -184,6 +195,8 @@ public class Server {
             obj.addProperty("deviceName", c.deviceName);
             obj.addProperty("remoteIp", c.remoteIp);
             obj.addProperty("connectedAt", c.connectedAt);
+            int slot = gamepadController.getSlotForClient(c.deviceId);
+            obj.addProperty("player", slot);
             array.add(obj);
         }
         JsonObject notif = new JsonObject();
@@ -198,6 +211,7 @@ public class Server {
         String authenticatedDeviceId = null;
         String clientDeviceName = "Android Device";
         PrintWriter clientWriter = null;
+        int gamepadSlot = 0;
 
         try (
             Socket client = socket;
@@ -250,6 +264,7 @@ public class Server {
             JsonObject welcome = new JsonObject();
             welcome.addProperty("type", "WELCOME");
             welcome.addProperty("version", 1);
+            welcome.addProperty("serverName", getLocalHostName());
             out.println(welcome);
 
             clients.incrementAndGet();
@@ -346,7 +361,8 @@ public class Server {
                         continue;
                     }
                     if (message.has("button") && message.has("state")) {
-                        gamepadController.handleButton(message.get("button").getAsString(), message.get("state").getAsString());
+                        int slot = gamepadSlot != 0 ? gamepadSlot : 1;
+                        gamepadController.handleButton(slot, message.get("button").getAsString(), message.get("state").getAsString());
                     }
                 } else if ("GAMEPAD_AXIS".equals(type)) {
                     if (!authenticated) {
@@ -357,7 +373,8 @@ public class Server {
                         try {
                             float x = (float) message.get("x").getAsDouble();
                             float y = (float) message.get("y").getAsDouble();
-                            gamepadController.handleAxis(message.get("stick").getAsString(), x, y);
+                            int slot = gamepadSlot != 0 ? gamepadSlot : 1;
+                            gamepadController.handleAxis(slot, message.get("stick").getAsString(), x, y);
                         } catch (Exception ignored) {
                         }
                     }
@@ -369,7 +386,8 @@ public class Server {
                     if (message.has("trigger") && message.has("value")) {
                         try {
                             float val = (float) message.get("value").getAsDouble();
-                            gamepadController.handleTrigger(message.get("trigger").getAsString(), val);
+                            int slot = gamepadSlot != 0 ? gamepadSlot : 1;
+                            gamepadController.handleTrigger(slot, message.get("trigger").getAsString(), val);
                         } catch (Exception ignored) {
                         }
                     }
@@ -380,6 +398,34 @@ public class Server {
                     }
                     if (message.has("profile")) {
                         gamepadController.setProfileByName(message.get("profile").getAsString());
+                    }
+                } else if ("MODE_CHANGE".equals(type)) {
+                    if (!authenticated) {
+                        sendError(out, "AUTH_REQUIRED", "Authentication required");
+                        continue;
+                    }
+                    if (message.has("mode")) {
+                        String mode = message.get("mode").getAsString();
+                        String clientId = authenticatedDeviceId != null ? authenticatedDeviceId : socket.getRemoteSocketAddress().toString();
+                        if ("GAMEPAD".equalsIgnoreCase(mode)) {
+                            if (gamepadSlot == 0) {
+                                gamepadSlot = gamepadController.allocateSlot(clientId);
+                                System.out.println("Assigned Controller Player " + gamepadSlot + " to: " + clientDeviceName + " (" + clientId + ")");
+
+                                JsonObject slotMsg = new JsonObject();
+                                slotMsg.addProperty("type", "GAMEPAD_ASSIGNED");
+                                slotMsg.addProperty("player", gamepadSlot);
+                                out.println(slotMsg);
+
+                                broadcastConnectedDevices();
+                            }
+                        } else {
+                            if (gamepadSlot != 0) {
+                                gamepadController.releaseSlot(clientId);
+                                gamepadSlot = 0;
+                                broadcastConnectedDevices();
+                            }
+                        }
                     }
                 } else if ("PING".equals(type)) {
                     JsonObject pong = new JsonObject();
@@ -533,7 +579,11 @@ public class Server {
         } catch (Exception e) {
             System.out.println("Client disconnected: " + e.getMessage());
         } finally {
-            gamepadController.resetAll();
+            if (gamepadSlot != 0) {
+                String clientId = authenticatedDeviceId != null ? authenticatedDeviceId : (socket != null ? socket.getRemoteSocketAddress().toString() : "unknown");
+                gamepadController.releaseSlot(clientId);
+                gamepadSlot = 0;
+            }
             if (clientWriter != null) {
                 adminWriters.remove(clientWriter);
             }

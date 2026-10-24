@@ -39,7 +39,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="PC Remote Receiver Discovery"
+                    android:text="Wireless Controller &amp; Touchpad"
                     android:textColor="#94A3B8"
                     android:textSize="13sp"
                     android:layout_marginTop="2dp" />
@@ -86,7 +86,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="AVAILABLE RECEIVERS"
+                    android:text="AVAILABLE COMPUTERS"
                     android:textColor="#64748B"
                     android:textSize="11sp"
                     android:textStyle="bold"
@@ -233,440 +233,353 @@
         <!-- ============================================== -->
         <!-- TAB 3: XBOX GAMEPAD CONTROLLER (HORIZONTAL)    -->
         <!-- ============================================== -->
+        <!-- ============================================== -->
+        <!-- TAB 3: XBOX GAMEPAD CONTROLLER (HORIZONTAL)    -->
+        <!-- ============================================== -->
         <LinearLayout
             android:id="@+id/layoutGamepad"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
-            android:background="#0B0F19"
-            android:paddingStart="6dp"
-            android:paddingEnd="6dp"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp"
+            android:background="@drawable/bg_gamepad"
             android:visibility="gone">
 
-            <!-- Gamepad Top Action Bar -->
-            <LinearLayout
+            <RelativeLayout
                 android:layout_width="match_parent"
-                android:layout_height="34dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingStart="4dp"
-                android:paddingEnd="4dp">
+                android:layout_height="match_parent">
 
-                <Button
-                    android:id="@+id/gamepadBackBtn"
-                    android:layout_width="wrap_content"
-                    android:layout_height="28dp"
-                    android:text="‹ TOUCHPAD"
-                    android:textColor="#38BDF8"
-                    android:textSize="11sp"
-                    android:textStyle="bold"
-                    android:background="#1E293B"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp" />
-
+                <!-- Hidden helpers to satisfy existing MainActivity references -->
                 <TextView
                     android:id="@+id/gamepadPcBadge"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:text="🎮 XBOX GAMEPAD"
-                    android:textColor="#34D399"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:visibility="gone" />
 
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="1dp"
-                    android:layout_weight="1" />
-
-                <!-- Game Profile Toggle (FPS / Racing / Retro) -->
                 <Button
                     android:id="@+id/gamepadProfileBtn"
                     android:layout_width="wrap_content"
-                    android:layout_height="28dp"
-                    android:text="FPS / Action ▾"
-                    android:textColor="#F1F5F9"
-                    android:textSize="11sp"
-                    android:background="#1E293B"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:layout_marginEnd="6dp" />
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
 
-                <!-- Screen Orientation Toggle -->
                 <Button
                     android:id="@+id/gamepadRotateBtn"
                     android:layout_width="wrap_content"
-                    android:layout_height="28dp"
-                    android:text="⛶ Rotate"
-                    android:textColor="#94A3B8"
-                    android:textSize="11sp"
-                    android:background="#1E293B"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp" />
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
 
-            </LinearLayout>
-
-            <!-- Main Horizontal Console Area: Left Wing | Center Console | Right Wing -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <!-- ================= LEFT WING ================= -->
+                <!-- ================= TOP BUTTONS ROW ================= -->
+                <!-- LT | LB | Guid | RB | RT (Spanning full top width with Monect pills) -->
                 <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal">
+                    android:id="@+id/topButtonsBar"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_alignParentTop="true"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="2dp">
 
-                    <!-- Left Shoulder Buttons (LT & LB) -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="start|center_vertical"
-                        android:paddingStart="4dp"
-                        android:paddingTop="2dp"
-                        android:paddingBottom="2dp">
+                    <!-- Subtle Exit/Back Button -->
+                    <Button
+                        android:id="@+id/gamepadBackBtn"
+                        android:layout_width="38dp"
+                        android:layout_height="44dp"
+                        android:text="‹"
+                        android:textColor="#38BDF8"
+                        android:textSize="20sp"
+                        android:background="@drawable/btn_gamepad_pill"
+                        android:layout_marginEnd="8dp" />
 
-                        <Button
-                            android:id="@+id/btnLT"
-                            android:layout_width="84dp"
-                            android:layout_height="36dp"
-                            android:text="LT"
-                            android:textColor="#FFFFFF"
-                            android:textSize="13sp"
-                            android:textStyle="bold"
-                            android:background="@drawable/btn_xbox_trigger" />
+                    <!-- Left Trigger LT -->
+                    <Button
+                        android:id="@+id/btnLT"
+                        android:layout_width="0dp"
+                        android:layout_height="44dp"
+                        android:layout_weight="1.2"
+                        android:text="LT"
+                        android:textColor="#E0F2FE"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/btn_gamepad_pill" />
 
-                        <View
-                            android:layout_width="8dp"
-                            android:layout_height="match_parent" />
+                    <!-- Left Bumper LB -->
+                    <Button
+                        android:id="@+id/btnLB"
+                        android:layout_width="0dp"
+                        android:layout_height="44dp"
+                        android:layout_weight="1.0"
+                        android:layout_marginStart="8dp"
+                        android:text="LB"
+                        android:textColor="#E0F2FE"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/btn_gamepad_pill" />
 
-                        <Button
-                            android:id="@+id/btnLB"
-                            android:layout_width="74dp"
-                            android:layout_height="36dp"
-                            android:text="LB"
-                            android:textColor="#E2E8F0"
-                            android:textSize="13sp"
-                            android:textStyle="bold"
-                            android:background="@drawable/btn_xbox_shoulder" />
+                    <!-- Center Spacer -->
+                    <View
+                        android:layout_width="20dp"
+                        android:layout_height="1dp" />
 
-                    </LinearLayout>
+                    <!-- Guide Button (Monect style Guid) -->
+                    <Button
+                        android:id="@+id/btnXboxGuide"
+                        android:layout_width="80dp"
+                        android:layout_height="44dp"
+                        android:text="Guid"
+                        android:textColor="#E0F2FE"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/btn_gamepad_pill" />
 
-                    <!-- Left Thumb Controls (Left Analog Stick & D-Pad Cross) -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="0dp"
-                        android:layout_weight="1"
-                        android:orientation="horizontal"
-                        android:gravity="center">
+                    <!-- Center Spacer -->
+                    <View
+                        android:layout_width="20dp"
+                        android:layout_height="1dp" />
 
-                        <!-- Left Analog Stick (LS + L3) -->
-                        <RelativeLayout
-                            android:layout_width="135dp"
-                            android:layout_height="135dp"
-                            android:layout_marginEnd="8dp">
+                    <!-- Right Bumper RB -->
+                    <Button
+                        android:id="@+id/btnRB"
+                        android:layout_width="0dp"
+                        android:layout_height="44dp"
+                        android:layout_weight="1.0"
+                        android:layout_marginEnd="8dp"
+                        android:text="RB"
+                        android:textColor="#E0F2FE"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/btn_gamepad_pill" />
 
-                            <com.ctrlx.mobile.JoystickView
-                                android:id="@+id/leftStick"
-                                android:layout_width="match_parent"
-                                android:layout_height="match_parent" />
-
-                            <Button
-                                android:id="@+id/btnL3"
-                                android:layout_width="30dp"
-                                android:layout_height="30dp"
-                                android:layout_alignParentBottom="true"
-                                android:layout_alignParentEnd="true"
-                                android:text="L3"
-                                android:textColor="#94A3B8"
-                                android:textSize="10sp"
-                                android:textStyle="bold"
-                                android:background="@drawable/btn_xbox_small" />
-
-                        </RelativeLayout>
-
-                        <!-- Xbox D-Pad Cross -->
-                        <RelativeLayout
-                            android:layout_width="120dp"
-                            android:layout_height="120dp"
-                            android:layout_marginStart="4dp">
-
-                            <!-- D-Pad UP -->
-                            <Button
-                                android:id="@+id/btnDpadUp"
-                                android:layout_width="38dp"
-                                android:layout_height="38dp"
-                                android:layout_centerHorizontal="true"
-                                android:layout_alignParentTop="true"
-                                android:text="▲"
-                                android:textColor="#F1F5F9"
-                                android:textSize="13sp"
-                                android:background="@drawable/btn_xbox_dpad" />
-
-                            <!-- D-Pad LEFT -->
-                            <Button
-                                android:id="@+id/btnDpadLeft"
-                                android:layout_width="38dp"
-                                android:layout_height="38dp"
-                                android:layout_alignParentStart="true"
-                                android:layout_centerVertical="true"
-                                android:text="◀"
-                                android:textColor="#F1F5F9"
-                                android:textSize="13sp"
-                                android:background="@drawable/btn_xbox_dpad" />
-
-                            <!-- D-Pad Center Hub Decorator -->
-                            <View
-                                android:layout_width="26dp"
-                                android:layout_height="26dp"
-                                android:layout_centerInParent="true"
-                                android:background="#0F172A" />
-
-                            <!-- D-Pad RIGHT -->
-                            <Button
-                                android:id="@+id/btnDpadRight"
-                                android:layout_width="38dp"
-                                android:layout_height="38dp"
-                                android:layout_alignParentEnd="true"
-                                android:layout_centerVertical="true"
-                                android:text="▶"
-                                android:textColor="#F1F5F9"
-                                android:textSize="13sp"
-                                android:background="@drawable/btn_xbox_dpad" />
-
-                            <!-- D-Pad DOWN -->
-                            <Button
-                                android:id="@+id/btnDpadDown"
-                                android:layout_width="38dp"
-                                android:layout_height="38dp"
-                                android:layout_centerHorizontal="true"
-                                android:layout_alignParentBottom="true"
-                                android:text="▼"
-                                android:textColor="#F1F5F9"
-                                android:textSize="13sp"
-                                android:background="@drawable/btn_xbox_dpad" />
-
-                        </RelativeLayout>
-
-                    </LinearLayout>
+                    <!-- Right Trigger RT -->
+                    <Button
+                        android:id="@+id/btnRT"
+                        android:layout_width="0dp"
+                        android:layout_height="44dp"
+                        android:layout_weight="1.2"
+                        android:text="RT"
+                        android:textColor="#E0F2FE"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/btn_gamepad_pill" />
 
                 </LinearLayout>
 
-                <!-- ================= CENTER CONSOLE ================= -->
+                <!-- ================= CENTER CLUSTER ================= -->
+                <!-- Back, Start / LS, RS (2x2 Grid matching Monect) -->
                 <LinearLayout
+                    android:id="@+id/centerCluster"
                     android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/topButtonsBar"
+                    android:layout_centerHorizontal="true"
+                    android:layout_marginTop="14dp"
                     android:orientation="vertical"
-                    android:gravity="center"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp">
+                    android:gravity="center_horizontal">
 
-                    <!-- Glowing Xbox Guide Button -->
-                    <Button
-                        android:id="@+id/btnXboxGuide"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:text="✖"
-                        android:textColor="#10B981"
-                        android:textSize="20sp"
-                        android:textStyle="bold"
-                        android:background="@drawable/btn_xbox_guide" />
-
-                    <!-- View & Menu Buttons Row -->
+                    <!-- Row 1: Back & Start -->
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center"
-                        android:layout_marginTop="14dp">
+                        android:orientation="horizontal">
 
                         <Button
                             android:id="@+id/btnView"
-                            android:layout_width="44dp"
-                            android:layout_height="30dp"
-                            android:text="⧉"
-                            android:textColor="#94A3B8"
-                            android:textSize="15sp"
+                            android:layout_width="66dp"
+                            android:layout_height="32dp"
+                            android:text="Back"
+                            android:textColor="#E0F2FE"
+                            android:textSize="11sp"
                             android:textStyle="bold"
-                            android:background="@drawable/btn_xbox_small" />
+                            android:background="@drawable/btn_gamepad_pill" />
 
                         <View
-                            android:layout_width="14dp"
+                            android:layout_width="16dp"
                             android:layout_height="1dp" />
 
                         <Button
                             android:id="@+id/btnMenu"
-                            android:layout_width="44dp"
-                            android:layout_height="30dp"
-                            android:text="☰"
-                            android:textColor="#94A3B8"
-                            android:textSize="15sp"
+                            android:layout_width="66dp"
+                            android:layout_height="32dp"
+                            android:text="Start"
+                            android:textColor="#E0F2FE"
+                            android:textSize="11sp"
                             android:textStyle="bold"
-                            android:background="@drawable/btn_xbox_small" />
+                            android:background="@drawable/btn_gamepad_pill" />
 
                     </LinearLayout>
 
-                    <TextView
+                    <!-- Row 2: LS & RS Click Buttons -->
+                    <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="CTRLX"
-                        android:textColor="#334155"
-                        android:textSize="10sp"
-                        android:textStyle="bold"
-                        android:layout_marginTop="8dp" />
-
-                </LinearLayout>
-
-                <!-- ================= RIGHT WING ================= -->
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center_horizontal">
-
-                    <!-- Right Shoulder Buttons (RB & RT) -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="end|center_vertical"
-                        android:paddingEnd="4dp"
-                        android:paddingTop="2dp"
-                        android:paddingBottom="2dp">
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal">
 
                         <Button
-                            android:id="@+id/btnRB"
-                            android:layout_width="74dp"
-                            android:layout_height="36dp"
-                            android:text="RB"
-                            android:textColor="#E2E8F0"
-                            android:textSize="13sp"
+                            android:id="@+id/btnL3"
+                            android:layout_width="66dp"
+                            android:layout_height="32dp"
+                            android:text="LS"
+                            android:textColor="#E0F2FE"
+                            android:textSize="11sp"
                             android:textStyle="bold"
-                            android:background="@drawable/btn_xbox_shoulder" />
+                            android:background="@drawable/btn_gamepad_pill" />
 
                         <View
-                            android:layout_width="8dp"
-                            android:layout_height="match_parent" />
+                            android:layout_width="16dp"
+                            android:layout_height="1dp" />
 
                         <Button
-                            android:id="@+id/btnRT"
-                            android:layout_width="84dp"
-                            android:layout_height="36dp"
-                            android:text="RT"
-                            android:textColor="#FFFFFF"
-                            android:textSize="13sp"
+                            android:id="@+id/btnR3"
+                            android:layout_width="66dp"
+                            android:layout_height="32dp"
+                            android:text="RS"
+                            android:textColor="#E0F2FE"
+                            android:textSize="11sp"
                             android:textStyle="bold"
-                            android:background="@drawable/btn_xbox_trigger" />
-
-                    </LinearLayout>
-
-                    <!-- Right Thumb Controls (Right Analog Stick & ABXY Diamond) -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="0dp"
-                        android:layout_weight="1"
-                        android:orientation="horizontal"
-                        android:gravity="center">
-
-                        <!-- Right Analog Stick (RS + R3) -->
-                        <RelativeLayout
-                            android:layout_width="135dp"
-                            android:layout_height="135dp"
-                            android:layout_marginEnd="6dp">
-
-                            <com.ctrlx.mobile.JoystickView
-                                android:id="@+id/rightStick"
-                                android:layout_width="match_parent"
-                                android:layout_height="match_parent" />
-
-                            <Button
-                                android:id="@+id/btnR3"
-                                android:layout_width="30dp"
-                                android:layout_height="30dp"
-                                android:layout_alignParentBottom="true"
-                                android:layout_alignParentStart="true"
-                                android:text="R3"
-                                android:textColor="#94A3B8"
-                                android:textSize="10sp"
-                                android:textStyle="bold"
-                                android:background="@drawable/btn_xbox_small" />
-
-                        </RelativeLayout>
-
-                        <!-- Xbox ABXY Diamond Cluster -->
-                        <RelativeLayout
-                            android:layout_width="125dp"
-                            android:layout_height="125dp"
-                            android:layout_marginStart="8dp">
-
-                            <!-- Y Button (Top / Yellow) -->
-                            <Button
-                                android:id="@+id/btnY"
-                                android:layout_width="42dp"
-                                android:layout_height="42dp"
-                                android:layout_centerHorizontal="true"
-                                android:layout_alignParentTop="true"
-                                android:text="Y"
-                                android:textColor="#FFFFFF"
-                                android:textSize="16sp"
-                                android:textStyle="bold"
-                                android:background="@drawable/btn_xbox_y" />
-
-                            <!-- X Button (Left / Blue) -->
-                            <Button
-                                android:id="@+id/btnX"
-                                android:layout_width="42dp"
-                                android:layout_height="42dp"
-                                android:layout_alignParentStart="true"
-                                android:layout_centerVertical="true"
-                                android:text="X"
-                                android:textColor="#FFFFFF"
-                                android:textSize="16sp"
-                                android:textStyle="bold"
-                                android:background="@drawable/btn_xbox_x" />
-
-                            <!-- B Button (Right / Red) -->
-                            <Button
-                                android:id="@+id/btnB"
-                                android:layout_width="42dp"
-                                android:layout_height="42dp"
-                                android:layout_alignParentEnd="true"
-                                android:layout_centerVertical="true"
-                                android:text="B"
-                                android:textColor="#FFFFFF"
-                                android:textSize="16sp"
-                                android:textStyle="bold"
-                                android:background="@drawable/btn_xbox_b" />
-
-                            <!-- A Button (Bottom / Green) -->
-                            <Button
-                                android:id="@+id/btnA"
-                                android:layout_width="42dp"
-                                android:layout_height="42dp"
-                                android:layout_centerHorizontal="true"
-                                android:layout_alignParentBottom="true"
-                                android:text="A"
-                                android:textColor="#FFFFFF"
-                                android:textSize="16sp"
-                                android:textStyle="bold"
-                                android:background="@drawable/btn_xbox_a" />
-
-                        </RelativeLayout>
+                            android:background="@drawable/btn_gamepad_pill" />
 
                     </LinearLayout>
 
                 </LinearLayout>
 
-            </LinearLayout>
+                <!-- ================= LEFT SECTION ================= -->
+                <!-- Left Analog Stick (TOP-LEFT position per Monect layout) -->
+                <com.ctrlx.mobile.JoystickView
+                    android:id="@+id/leftStick"
+                    android:layout_width="140dp"
+                    android:layout_height="140dp"
+                    android:layout_below="@id/topButtonsBar"
+                    android:layout_alignParentStart="true"
+                    android:layout_marginStart="32dp"
+                    android:layout_marginTop="14dp" />
+
+                <!-- Monect-Style 4-Pill D-Pad Cross (Lower-Left, Shifted Inward) -->
+                <RelativeLayout
+                    android:id="@+id/dpadCluster"
+                    android:layout_width="132dp"
+                    android:layout_height="132dp"
+                    android:layout_below="@id/leftStick"
+                    android:layout_alignParentStart="true"
+                    android:layout_marginStart="96dp"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginBottom="12dp">
+
+                    <!-- UP arm (vertical capsule) -->
+                    <Button
+                        android:id="@+id/btnDpadUp"
+                        android:layout_width="28dp"
+                        android:layout_height="52dp"
+                        android:layout_alignParentTop="true"
+                        android:layout_centerHorizontal="true"
+                        android:background="@drawable/btn_gamepad_pill" />
+
+                    <!-- DOWN arm (vertical capsule) -->
+                    <Button
+                        android:id="@+id/btnDpadDown"
+                        android:layout_width="28dp"
+                        android:layout_height="52dp"
+                        android:layout_alignParentBottom="true"
+                        android:layout_centerHorizontal="true"
+                        android:background="@drawable/btn_gamepad_pill" />
+
+                    <!-- LEFT arm (horizontal capsule) -->
+                    <Button
+                        android:id="@+id/btnDpadLeft"
+                        android:layout_width="52dp"
+                        android:layout_height="28dp"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:background="@drawable/btn_gamepad_pill" />
+
+                    <!-- RIGHT arm (horizontal capsule) -->
+                    <Button
+                        android:id="@+id/btnDpadRight"
+                        android:layout_width="52dp"
+                        android:layout_height="28dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:background="@drawable/btn_gamepad_pill" />
+
+                </RelativeLayout>
+
+                <!-- ================= RIGHT SECTION ================= -->
+                <!-- ABXY Diamond Cluster (Covers Right Part of Screen in Equal Sized Squircles) -->
+                <RelativeLayout
+                    android:id="@+id/abxyCluster"
+                    android:layout_width="250dp"
+                    android:layout_height="230dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_alignParentBottom="true"
+                    android:layout_marginEnd="20dp"
+                    android:layout_marginBottom="16dp">
+
+                    <!-- Y Button (Top, 82x66dp Squircle) -->
+                    <Button
+                        android:id="@+id/btnY"
+                        android:layout_width="82dp"
+                        android:layout_height="66dp"
+                        android:layout_alignParentTop="true"
+                        android:layout_centerHorizontal="true"
+                        android:text="Y"
+                        android:textColor="#E0F2FE"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/btn_gamepad_rect" />
+
+                    <!-- X Button (Left, 82x66dp Squircle) -->
+                    <Button
+                        android:id="@+id/btnX"
+                        android:layout_width="82dp"
+                        android:layout_height="66dp"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:text="X"
+                        android:textColor="#E0F2FE"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/btn_gamepad_rect" />
+
+                    <!-- B Button (Right, 82x66dp Squircle) -->
+                    <Button
+                        android:id="@+id/btnB"
+                        android:layout_width="82dp"
+                        android:layout_height="66dp"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:text="B"
+                        android:textColor="#E0F2FE"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/btn_gamepad_rect" />
+
+                    <!-- A Button (Bottom, 82x66dp Squircle) -->
+                    <Button
+                        android:id="@+id/btnA"
+                        android:layout_width="82dp"
+                        android:layout_height="66dp"
+                        android:layout_alignParentBottom="true"
+                        android:layout_centerHorizontal="true"
+                        android:text="A"
+                        android:textColor="#E0F2FE"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/btn_gamepad_rect" />
+
+                </RelativeLayout>
+
+                <!-- Right Analog Stick (Lower-Center/Right, Left of ABXY per Monect layout) -->
+                <com.ctrlx.mobile.JoystickView
+                    android:id="@+id/rightStick"
+                    android:layout_width="140dp"
+                    android:layout_height="140dp"
+                    android:layout_toStartOf="@id/abxyCluster"
+                    android:layout_alignParentBottom="true"
+                    android:layout_marginEnd="16dp"
+                    android:layout_marginBottom="16dp" />
+
+            </RelativeLayout>
 
         </LinearLayout>
 

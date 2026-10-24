@@ -5,9 +5,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import javafx.animation.Animation;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -19,7 +16,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import javafx.util.Duration;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -37,21 +33,12 @@ public class Dashboard extends Application {
     private Socket socket;
     private PrintWriter out;
     private volatile boolean connected;
-    private final Object sendLock = new Object();
-
-    private Timeline uptimeTimeline;
-    private Timeline statsTimeline;
-    private long serverStartTimeMillis = System.currentTimeMillis();
-
     private Label statusBadge;
     private Label pcNameLabel;
     private Label activePinLabel;
 
     private VBox devicesContainer;
     private Label noDevicesLabel;
-    private Label clientsValue;
-    private Label uptimeValue;
-    private Label pairedValue;
 
 
     @Override
@@ -74,7 +61,7 @@ public class Dashboard extends Application {
                 statusBadge);
         header.setAlignment(Pos.CENTER_LEFT);
 
-        // PC Info & Security Cards (Clean Monect style - No raw IP/port clutter)
+        // PC Info & Security Cards (Abstract & clean)
         String hostName = getHostComputerName();
         String initialPin = Server.pairingManager.getOrCreateActivePin();
 
@@ -83,7 +70,7 @@ public class Dashboard extends Application {
         pcTitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #94a3b8; -fx-letter-spacing: 1px;");
         pcNameLabel = new Label("🖥️  " + hostName);
         pcNameLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #f8fafc;");
-        Label pcSubtitle = new Label("Broadcasting on Wi-Fi • Automatic discovery active");
+        Label pcSubtitle = new Label("Ready for connection");
         pcSubtitle.setStyle("-fx-font-size: 12px; -fx-text-fill: #34d399;");
         VBox pcCard = new VBox(6, pcTitle, pcNameLabel, pcSubtitle);
         styleCard(pcCard);
@@ -93,29 +80,16 @@ public class Dashboard extends Application {
         pinTitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #94a3b8; -fx-letter-spacing: 1px;");
         activePinLabel = new Label(initialPin);
         activePinLabel.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #a78bfa; -fx-letter-spacing: 3px;");
-
-        Label pinSubtitle = new Label("One-time passcode for new phones");
+        Label pinSubtitle = new Label("Enter this code on your phone");
         pinSubtitle.setStyle("-fx-font-size: 12px; -fx-text-fill: #94a3b8;");
         VBox pinCard = new VBox(6, pinTitle, activePinLabel, pinSubtitle);
         styleCard(pinCard);
 
-        // Card 3: Xbox Gamepad Receiver
-        Label padTitle = new Label("GAMEPAD RECEIVER");
-        padTitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #94a3b8; -fx-letter-spacing: 1px;");
-        Label padProfileLabel = new Label("🎮 Xbox Pad Ready");
-        padProfileLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #38bdf8;");
-        Label padSubtitle = new Label("WASD Movement • Mouse Aim");
-        padSubtitle.setStyle("-fx-font-size: 11px; -fx-text-fill: #94a3b8;");
-        VBox padCard = new VBox(6, padTitle, padProfileLabel, padSubtitle);
-        styleCard(padCard);
-
-        HBox infoCardsRow = new HBox(12, pcCard, pinCard, padCard);
+        HBox infoCardsRow = new HBox(14, pcCard, pinCard);
         HBox.setHgrow(pcCard, Priority.ALWAYS);
         HBox.setHgrow(pinCard, Priority.ALWAYS);
-        HBox.setHgrow(padCard, Priority.ALWAYS);
 
-
-        // Connected Devices Section (Monect style)
+        // Connected Devices Section
         Label devSectionTitle = new Label("CONNECTED DEVICES");
         devSectionTitle.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #64748b; -fx-letter-spacing: 1px;");
 
@@ -128,55 +102,32 @@ public class Dashboard extends Application {
         devicesSection.setPadding(new Insets(16));
         styleCard(devicesSection);
 
-        // Footer Statistics
-        clientsValue = new Label("0");
-        uptimeValue = new Label("00:00:00");
-        pairedValue = new Label(String.valueOf(Server.pairingManager.getPairedCount()));
-
-        clientsValue.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;");
-        uptimeValue.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;");
-        pairedValue.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;");
-
-        HBox statsFooter = new HBox(
-                32,
-                new VBox(2, new Label("Clients Connected") {{ setStyle("-fx-font-size: 11px; -fx-text-fill: #64748b;"); }}, clientsValue),
-                new VBox(2, new Label("Paired Devices") {{ setStyle("-fx-font-size: 11px; -fx-text-fill: #64748b;"); }}, pairedValue),
-                new VBox(2, new Label("Server Uptime") {{ setStyle("-fx-font-size: 11px; -fx-text-fill: #64748b;"); }}, uptimeValue));
-
         VBox root = new VBox(
-                16,
+                18,
                 header,
                 infoCardsRow,
-                devicesSection,
-                statsFooter);
+                devicesSection);
 
         root.setPadding(new Insets(24));
         root.setStyle("-fx-background-color: #0b0f19;");
 
-        Scene scene = new Scene(root, 720, 530);
-        stage.setTitle("CTRLX - PC Remote Receiver");
+        Scene scene = new Scene(root, 620, 420);
+        stage.setTitle("CTRLX");
         stage.setScene(scene);
-        stage.setMinWidth(580);
-        stage.setMinHeight(480);
+        stage.setMinWidth(520);
+        stage.setMinHeight(360);
         stage.show();
 
         stage.setOnCloseRequest(e -> shutdownAndExit());
 
-        // Live ticking stopwatch timer for Server Uptime (updates every 1 second)
-        uptimeTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
-            long elapsedSecs = Math.max(0, (System.currentTimeMillis() - serverStartTimeMillis) / 1000L);
-            long hours = elapsedSecs / 3600;
-            long minutes = (elapsedSecs % 3600) / 60;
-            long seconds = elapsedSecs % 60;
-            uptimeValue.setText(String.format("%02d:%02d:%02d", hours, minutes, seconds));
-        }));
-        uptimeTimeline.setCycleCount(Animation.INDEFINITE);
-        uptimeTimeline.play();
-
-        // Periodic background stats synchronizer (updates every 3 seconds)
-        statsTimeline = new Timeline(new KeyFrame(Duration.seconds(3), e -> requestStats()));
-        statsTimeline.setCycleCount(Animation.INDEFINITE);
-        statsTimeline.play();
+        // Connect automatically to local server
+        new Thread(() -> {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException ignored) {
+            }
+            Platform.runLater(this::connectToServer);
+        }).start();
 
         // Connect automatically to local server
         new Thread(() -> {
@@ -216,10 +167,6 @@ public class Dashboard extends Application {
             Server.pairingManager.addListener((deviceId, deviceName, pin) -> {
                 Platform.runLater(() -> activePinLabel.setText(pin));
             });
-
-            Server.pairingManager.addClearListener(deviceId -> {
-                Platform.runLater(this::requestStats);
-            });
         } catch (Throwable ignored) {
         }
     }
@@ -244,20 +191,6 @@ public class Dashboard extends Application {
         }
     }
 
-    private void requestStats() {
-        if (!connected || out == null) {
-            connectToServer();
-            return;
-        }
-
-        new Thread(() -> {
-            synchronized (sendLock) {
-                if (connected && out != null) {
-                    out.println("{\"type\":\"STATS\"}");
-                }
-            }
-        }).start();
-    }
 
     void connectToServer() {
         new Thread(() -> {
@@ -295,7 +228,6 @@ public class Dashboard extends Application {
                 Platform.runLater(() -> {
                     statusBadge.setText("● READY TO CONNECT");
                     statusBadge.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 12; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
-                    requestStats();
                 });
 
                 String message;
@@ -307,12 +239,8 @@ public class Dashboard extends Application {
                         Matcher pinM = pinPattern.matcher(received);
                         String pin = pinM.find() ? pinM.group(1) : "------";
                         Platform.runLater(() -> activePinLabel.setText(pin));
-                    } else if (received.contains("\"type\":\"PAIR_PIN_CLEARED\"")) {
-                        Platform.runLater(this::requestStats);
                     } else if (received.contains("\"type\":\"DEVICES_UPDATE\"")) {
                         updateDevicesList(received);
-                    } else if (received.contains("\"type\":\"STATS\"")) {
-                        updateStats(received);
                     }
                 }
 
@@ -359,14 +287,15 @@ public class Dashboard extends Application {
                     String devId = d.get("deviceId").getAsString();
                     String devName = d.has("deviceName") ? d.get("deviceName").getAsString() : "Mobile Phone";
 
-                    Label icon = new Label("📱");
+                    int player = d.has("player") ? d.get("player").getAsInt() : 0;
+                    Label icon = new Label(player > 0 ? "🎮" : "📱");
                     icon.setStyle("-fx-font-size: 20px;");
 
-                    Label nameLbl = new Label(devName);
+                    Label nameLbl = new Label(devName + (player > 0 ? " [Player " + player + "]" : ""));
                     nameLbl.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #f8fafc;");
 
-                    Label statusLbl = new Label("Connected & Active");
-                    statusLbl.setStyle("-fx-font-size: 12px; -fx-text-fill: #34d399;");
+                    Label statusLbl = new Label(player > 0 ? "● Gamepad Active (Controller " + player + ")" : "Connected & Active");
+                    statusLbl.setStyle("-fx-font-size: 12px; -fx-text-fill: " + (player > 0 ? "#38bdf8;" : "#34d399;"));
 
                     VBox info = new VBox(2, nameLbl, statusLbl);
 
@@ -388,38 +317,10 @@ public class Dashboard extends Application {
 
     private void kickDevice(String deviceId) {
         new Thread(() -> {
-            synchronized (sendLock) {
-                if (connected && out != null) {
-                    out.println("{\"type\":\"KICK_DEVICE\",\"deviceId\":\"" + deviceId + "\"}");
-                }
+            if (connected && out != null) {
+                out.println("{\"type\":\"KICK_DEVICE\",\"deviceId\":\"" + deviceId + "\"}");
             }
         }).start();
-    }
-
-    private void updateStats(String json) {
-        Pattern clientsPattern = Pattern.compile("\"connectedClients\"\\s*:\\s*(\\d+)");
-        Pattern uptimePattern = Pattern.compile("\"uptimeSeconds\"\\s*:\\s*(\\d+)");
-        Pattern pairedPattern = Pattern.compile("\"pairedClients\"\\s*:\\s*(\\d+)");
-
-        Matcher clientsMatcher = clientsPattern.matcher(json);
-        Matcher uptimeMatcher = uptimePattern.matcher(json);
-        Matcher pairedMatcher = pairedPattern.matcher(json);
-
-        if (!clientsMatcher.find() || !uptimeMatcher.find()) {
-            return;
-        }
-
-        int clients = Integer.parseInt(clientsMatcher.group(1));
-        long uptime = Long.parseLong(uptimeMatcher.group(1));
-        int paired = pairedMatcher.find() ? Integer.parseInt(pairedMatcher.group(1)) : 0;
-
-        // Synchronize base start time so the 1-second live ticker counts seamlessly
-        serverStartTimeMillis = System.currentTimeMillis() - (uptime * 1000L);
-
-        Platform.runLater(() -> {
-            clientsValue.setText(String.valueOf(clients));
-            pairedValue.setText(String.valueOf(paired));
-        });
     }
 
     void disconnect() {
@@ -442,8 +343,6 @@ public class Dashboard extends Application {
 
     private void shutdownAndExit() {
         try {
-            if (uptimeTimeline != null) uptimeTimeline.stop();
-            if (statsTimeline != null) statsTimeline.stop();
             disconnect();
             Server.stop();
         } catch (Exception ignored) {
