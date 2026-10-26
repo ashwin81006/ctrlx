@@ -31,6 +31,8 @@ public class Server {
     public static final PairingManager pairingManager = new PairingManager();
     public static final MouseController mouseController = new MouseController();
     public static final GamepadController gamepadController = new GamepadController();
+    public static final MediaController mediaController = new MediaController();
+    public static final PowerController powerController = new PowerController();
     public static final Set<PrintWriter> adminWriters = ConcurrentHashMap.newKeySet();
 
     public static class ActiveClient {
@@ -354,6 +356,24 @@ public class Server {
                     }
                     if (message.has("key")) {
                         mouseController.pressKey(message.get("key").getAsString());
+                    }
+                } else if ("MEDIA_COMMAND".equals(type)) {
+                    if (!authenticated) {
+                        sendError(out, "AUTH_REQUIRED", "Authentication required");
+                        continue;
+                    }
+                    if (message.has("command")) {
+                        mediaController.executeCommand(message.get("command").getAsString());
+                    }
+                } else if ("POWER_COMMAND".equals(type)) {
+                    if (!authenticated) {
+                        sendError(out, "AUTH_REQUIRED", "Authentication required");
+                        continue;
+                    }
+                    String action = message.has("action") ? message.get("action").getAsString()
+                            : (message.has("command") ? message.get("command").getAsString() : null);
+                    if (action != null) {
+                        powerController.executeAction(action);
                     }
                 } else if ("GAMEPAD_BUTTON".equals(type)) {
                     if (!authenticated) {

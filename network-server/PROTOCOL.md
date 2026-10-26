@@ -106,6 +106,50 @@ Server:
 
 ---
 
+## Keyboard Input (Requires Authentication)
+
+### 1. Unicode Text Input (IME / Typing / Voice-to-Text)
+Client:
+```json
+{"type":"KEY_TEXT","text":"Hello World! 🚀"}
+```
+
+### 2. Single Key Press (Enter, Backspace, etc.)
+Client:
+```json
+{"type":"KEY_PRESS","key":"BACKSPACE"}
+```
+Supported keys: `ENTER`, `BACKSPACE`, `TAB`, `SPACE`, `ESCAPE`, `UP`, `DOWN`, `LEFT`, `RIGHT`, `DELETE`, `HOME`, `END`, `WIN`.
+
+---
+
+## Media Controls (Requires Authentication)
+
+Client:
+```json
+{"type":"MEDIA_COMMAND","command":"VOL_UP"}
+```
+Supported commands:
+- Volume: `VOL_UP`, `VOL_DOWN`, `MUTE`
+- Playback: `PLAY_PAUSE`, `NEXT_TRACK`, `PREV_TRACK`, `STOP`
+
+---
+
+## Power & System Actions (Requires Authentication)
+
+Client:
+```json
+{"type":"POWER_COMMAND","action":"LOCK"}
+```
+Supported actions:
+- `LOCK`: Locks Windows workstation
+- `SLEEP`: Puts PC into low-power sleep
+- `RESTART`: Reboots Windows
+- `SHUTDOWN`: Safely shuts down Windows
+
+---
+
+
 ## Xbox Gamepad Controls (Requires Authentication)
 
 ### 1. Gamepad Button State (Press & Release)

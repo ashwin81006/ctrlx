@@ -11,11 +11,15 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.text.Editable;
 import android.text.InputType;
+import android.text.TextWatcher;
 import android.view.HapticFeedbackConstants;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
@@ -97,6 +101,18 @@ public class MainActivity extends Activity {
     private FrameLayout touchpadSurface;
     private Button leftClickButton;
     private Button rightClickButton;
+
+    // Soft Keyboard, Media & Power Views
+    private EditText hiddenKeyInput;
+    private Button touchpadKeyboardBtn;
+    private Button touchpadPowerBtn;
+    private Button btnMediaPrev;
+    private Button btnMediaPlayPause;
+    private Button btnMediaNext;
+    private Button btnMediaVolDown;
+    private Button btnMediaVolUp;
+    private Button btnMediaMute;
+    private boolean isUpdatingKeyInput = false;
 
     // Gamepad Views
     private TextView gamepadPcBadge;
@@ -236,6 +252,17 @@ public class MainActivity extends Activity {
         leftClickButton = findViewById(R.id.leftClickButton);
         rightClickButton = findViewById(R.id.rightClickButton);
 
+        // Soft Keyboard, Media & Power Views
+        hiddenKeyInput = findViewById(R.id.hiddenKeyInput);
+        touchpadKeyboardBtn = findViewById(R.id.touchpadKeyboardBtn);
+        touchpadPowerBtn = findViewById(R.id.touchpadPowerBtn);
+        btnMediaPrev = findViewById(R.id.btnMediaPrev);
+        btnMediaPlayPause = findViewById(R.id.btnMediaPlayPause);
+        btnMediaNext = findViewById(R.id.btnMediaNext);
+        btnMediaVolDown = findViewById(R.id.btnMediaVolDown);
+        btnMediaVolUp = findViewById(R.id.btnMediaVolUp);
+        btnMediaMute = findViewById(R.id.btnMediaMute);
+
         // Gamepad Views
         gamepadPcBadge = findViewById(R.id.gamepadPcBadge);
         gamepadProfileBtn = findViewById(R.id.gamepadProfileBtn);
@@ -359,6 +386,101 @@ public class MainActivity extends Activity {
         });
 
         setupTouchpadGesture();
+
+        // Soft Keyboard setup
+        if (hiddenKeyInput != null) {
+            isUpdatingKeyInput = true;
+            hiddenKeyInput.setText(" ");
+            hiddenKeyInput.setSelection(1);
+            isUpdatingKeyInput = false;
+
+            hiddenKeyInput.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    if (isUpdatingKeyInput) return;
+                    if (count == 0 && before > 0) {
+                        triggerHaptic();
+                        sendKeyPress("BACKSPACE");
+                    } else if (count > 0) {
+                        CharSequence added = s.subSequence(start, start + count);
+                        String text = added.toString();
+                        if ("\n".equals(text)) {
+                            triggerHaptic();
+                            sendKeyPress("ENTER");
+                        } else if (!text.isEmpty()) {
+                            sendKeyText(text);
+                        }
+                    }
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {
+                    if (isUpdatingKeyInput) return;
+                    isUpdatingKeyInput = true;
+                    hiddenKeyInput.setText(" ");
+                    hiddenKeyInput.setSelection(1);
+                    isUpdatingKeyInput = false;
+                }
+            });
+
+            hiddenKeyInput.setOnKeyListener((v, keyCode, event) -> {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    if (keyCode == KeyEvent.KEYCODE_DEL) {
+                        triggerHaptic();
+                        sendKeyPress("BACKSPACE");
+                        return true;
+                    } else if (keyCode == KeyEvent.KEYCODE_ENTER) {
+                        triggerHaptic();
+                        sendKeyPress("ENTER");
+                        return true;
+                    }
+                }
+                return false;
+            });
+
+            hiddenKeyInput.setOnEditorActionListener((v, actionId, event) -> {
+                triggerHaptic();
+                sendKeyPress("ENTER");
+                return true;
+            });
+        }
+
+        if (touchpadKeyboardBtn != null) {
+            touchpadKeyboardBtn.setOnClickListener(v -> {
+                triggerHaptic();
+                toggleSoftKeyboard();
+            });
+        }
+
+        if (touchpadPowerBtn != null) {
+            touchpadPowerBtn.setOnClickListener(v -> {
+                triggerHaptic();
+                showPowerActionsDialog();
+            });
+        }
+
+        // Media Controls listeners
+        if (btnMediaPrev != null) {
+            btnMediaPrev.setOnClickListener(v -> sendMediaCommand("PREV_TRACK"));
+        }
+        if (btnMediaPlayPause != null) {
+            btnMediaPlayPause.setOnClickListener(v -> sendMediaCommand("PLAY_PAUSE"));
+        }
+        if (btnMediaNext != null) {
+            btnMediaNext.setOnClickListener(v -> sendMediaCommand("NEXT_TRACK"));
+        }
+        if (btnMediaVolDown != null) {
+            btnMediaVolDown.setOnClickListener(v -> sendMediaCommand("VOL_DOWN"));
+        }
+        if (btnMediaVolUp != null) {
+            btnMediaVolUp.setOnClickListener(v -> sendMediaCommand("VOL_UP"));
+        }
+        if (btnMediaMute != null) {
+            btnMediaMute.setOnClickListener(v -> sendMediaCommand("MUTE"));
+        }
 
         // Gamepad Action Buttons (Tactile multi-touch hold & release)
         bindGamepadButton(btnA, "A");
@@ -1046,6 +1168,140 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {
             }
         });
+    }
+
+    private void toggleSoftKeyboard() {
+        if (hiddenKeyInput == null) return;
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null) {
+            hiddenKeyInput.requestFocus();
+            imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
+        }
+    }
+
+    private void sendKeyText(String text) {
+        if (!authenticated || out == null || text == null || text.isEmpty()) {
+            return;
+        }
+        senderExecutor.submit(() -> {
+            try {
+                JSONObject obj = new JSONObject();
+                obj.put("type", "KEY_TEXT");
+                obj.put("text", text);
+                synchronized (sendLock) {
+                    if (out != null) {
+                        out.println(obj.toString());
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        });
+    }
+
+    private void sendKeyPress(String key) {
+        if (!authenticated || out == null || key == null || key.isEmpty()) {
+            return;
+        }
+        senderExecutor.submit(() -> {
+            try {
+                JSONObject obj = new JSONObject();
+                obj.put("type", "KEY_PRESS");
+                obj.put("key", key);
+                synchronized (sendLock) {
+                    if (out != null) {
+                        out.println(obj.toString());
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        });
+    }
+
+    private void sendMediaCommand(String command) {
+        if (!authenticated || out == null || command == null) {
+            return;
+        }
+        triggerHaptic();
+        senderExecutor.submit(() -> {
+            try {
+                JSONObject obj = new JSONObject();
+                obj.put("type", "MEDIA_COMMAND");
+                obj.put("command", command);
+                synchronized (sendLock) {
+                    if (out != null) {
+                        out.println(obj.toString());
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        });
+    }
+
+    private void sendPowerCommand(String action) {
+        if (!authenticated || out == null || action == null) {
+            return;
+        }
+        triggerHaptic();
+        senderExecutor.submit(() -> {
+            try {
+                JSONObject obj = new JSONObject();
+                obj.put("type", "POWER_COMMAND");
+                obj.put("action", action);
+                synchronized (sendLock) {
+                    if (out != null) {
+                        out.println(obj.toString());
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        });
+    }
+
+    private void showPowerActionsDialog() {
+        String[] options = new String[] {
+            "🔒  Lock Workstation",
+            "🌙  Sleep (Low Power)",
+            "🔄  Restart Computer...",
+            "⏻  Shut Down Computer..."
+        };
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert);
+        builder.setTitle("⚡ PC Power Management");
+        builder.setItems(options, (dialog, which) -> {
+            switch (which) {
+                case 0:
+                    sendPowerCommand("LOCK");
+                    Toast.makeText(this, "PC Workstation Locked", Toast.LENGTH_SHORT).show();
+                    break;
+                case 1:
+                    sendPowerCommand("SLEEP");
+                    Toast.makeText(this, "PC Put to Sleep", Toast.LENGTH_SHORT).show();
+                    break;
+                case 2:
+                    confirmDestructivePowerAction("Restart", "RESTART");
+                    break;
+                case 3:
+                    confirmDestructivePowerAction("Shut Down", "SHUTDOWN");
+                    break;
+            }
+        });
+        builder.setNegativeButton("Cancel", null);
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    private void confirmDestructivePowerAction(String actionName, String command) {
+        String pcName = (targetPcName != null && !targetPcName.isEmpty()) ? targetPcName : "your PC";
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert);
+        builder.setTitle(actionName + " Computer?");
+        builder.setMessage("Are you sure you want to " + actionName.toLowerCase() + " " + pcName + "? Any unsaved work on your computer may be lost.");
+        builder.setPositiveButton(actionName, (dialog, which) -> {
+            sendPowerCommand(command);
+            Toast.makeText(this, "Sent " + actionName + " command to " + pcName, Toast.LENGTH_SHORT).show();
+        });
+        builder.setNegativeButton("Cancel", null);
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 
     private synchronized void stopHeartbeat() {

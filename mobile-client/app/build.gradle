@@ -4,7 +4,8 @@ plugins {
 
 android {
     namespace 'com.ctrlx.mobile'
-    compileSdk 35
+    compileSdk 34
+    buildToolsVersion '34.0.0'
 
     defaultConfig {
         applicationId 'com.ctrlx.mobile'
