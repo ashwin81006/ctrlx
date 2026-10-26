@@ -96,8 +96,21 @@ public class JoystickView extends View {
         canvas.drawCircle(hatX, hatY, hatRadius, hatPaint);
     }
 
+    private boolean editable = false;
+
+    public void setEditable(boolean editable) {
+        this.editable = editable;
+    }
+
+    public boolean isEditable() {
+        return editable;
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (editable) {
+            return false;
+        }
         int action = event.getActionMasked();
         int actionIndex = event.getActionIndex();
 
