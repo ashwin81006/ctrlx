@@ -25,6 +25,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -103,6 +104,20 @@ public class MainActivity extends Activity {
     private Button gamepadProfileBtn;
     private Button gamepadRotateBtn;
     private Button gamepadBackBtn;
+    private Button gamepadEditBtn;
+    private LinearLayout topButtonsBar;
+    private LinearLayout editModeOverlay;
+    private TextView editorTargetLabel;
+    private TextView editorScaleText;
+    private Button btnScaleDown;
+    private Button btnScaleUp;
+    private Button btnEditorReset;
+    private Button btnEditorDone;
+
+    private LinearLayout centerCluster;
+    private RelativeLayout dpadCluster;
+    private RelativeLayout abxyCluster;
+
     private JoystickView leftStick;
     private JoystickView rightStick;
     private Button btnLT, btnLB, btnRB, btnRT;
@@ -111,6 +126,14 @@ public class MainActivity extends Activity {
     private Button btnY, btnX, btnB, btnA, btnR3;
 
     private boolean isLandscape = false;
+    private boolean isLayoutEditMode = false;
+    private View selectedControlGroup = null;
+    private String selectedControlName = "";
+    private float editorTouchStartX = 0f;
+    private float editorTouchStartY = 0f;
+    private float editorViewStartX = 0f;
+    private float editorViewStartY = 0f;
+    private static final String KEY_CUSTOM_LAYOUT = "key_custom_gamepad_layout_v2";
 
     // Networking & State
     private volatile Socket socket;
@@ -164,6 +187,18 @@ public class MainActivity extends Activity {
         bindViews();
         setupNavigation();
         setupEventListeners();
+
+        if (layoutGamepad != null) {
+            layoutGamepad.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                int w = right - left;
+                int h = bottom - top;
+                int oldW = oldRight - oldLeft;
+                int oldH = oldBottom - oldTop;
+                if (w > 0 && h > 0 && (w != oldW || h != oldH) && !isLayoutEditMode && currentTab == Tab.GAMEPAD) {
+                    applyLayoutConfiguration();
+                }
+            });
+        }
 
         vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
 
@@ -268,6 +303,21 @@ public class MainActivity extends Activity {
         btnB = findViewById(R.id.btnB);
         btnA = findViewById(R.id.btnA);
         btnR3 = findViewById(R.id.btnR3);
+
+        // Gamepad Clusters & Layout Editor Views
+        topButtonsBar = findViewById(R.id.topButtonsBar);
+        gamepadEditBtn = findViewById(R.id.gamepadEditBtn);
+        editModeOverlay = findViewById(R.id.editModeOverlay);
+        editorTargetLabel = findViewById(R.id.editorTargetLabel);
+        editorScaleText = findViewById(R.id.editorScaleText);
+        btnScaleDown = findViewById(R.id.btnScaleDown);
+        btnScaleUp = findViewById(R.id.btnScaleUp);
+        btnEditorReset = findViewById(R.id.btnEditorReset);
+        btnEditorDone = findViewById(R.id.btnEditorDone);
+
+        centerCluster = findViewById(R.id.centerCluster);
+        dpadCluster = findViewById(R.id.dpadCluster);
+        abxyCluster = findViewById(R.id.abxyCluster);
     }
 
     private void setupNavigation() {
@@ -327,7 +377,11 @@ public class MainActivity extends Activity {
                 } else {
                     gamepadPcBadge.setText("🎮 XBOX GAMEPAD");
                 }
+                layoutGamepad.post(this::applyLayoutConfiguration);
             } else {
+                if (isLayoutEditMode) {
+                    saveAndExitLayoutEditMode();
+                }
                 isLandscape = false;
                 setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
             }
@@ -399,6 +453,48 @@ public class MainActivity extends Activity {
             gamepadBackBtn.setOnClickListener(v -> {
                 triggerHaptic();
                 switchTab(authenticated ? Tab.TOUCHPAD : Tab.CONNECT);
+            });
+        }
+
+        // Layout Editor Listeners & Draggable Groups
+        setupDraggableGroup(leftStick, "Left Stick (LS)");
+        setupDraggableGroup(dpadCluster, "D-Pad");
+        setupDraggableGroup(centerCluster, "Center Buttons");
+        setupDraggableGroup(rightStick, "Right Stick (RS)");
+        setupDraggableGroup(abxyCluster, "ABXY Buttons");
+
+        if (gamepadEditBtn != null) {
+            gamepadEditBtn.setOnClickListener(v -> {
+                triggerHaptic();
+                toggleLayoutEditMode();
+            });
+        }
+
+        if (btnEditorDone != null) {
+            btnEditorDone.setOnClickListener(v -> {
+                triggerHaptic();
+                saveAndExitLayoutEditMode();
+            });
+        }
+
+        if (btnEditorReset != null) {
+            btnEditorReset.setOnClickListener(v -> {
+                triggerHaptic();
+                resetLayoutToDefault();
+            });
+        }
+
+        if (btnScaleDown != null) {
+            btnScaleDown.setOnClickListener(v -> {
+                triggerHaptic();
+                adjustSelectedControlScale(-0.05f);
+            });
+        }
+
+        if (btnScaleUp != null) {
+            btnScaleUp.setOnClickListener(v -> {
+                triggerHaptic();
+                adjustSelectedControlScale(0.05f);
             });
         }
 
@@ -1144,6 +1240,24 @@ public class MainActivity extends Activity {
         if (btn == null)
             return;
         btn.setOnTouchListener((v, event) -> {
+            if (isLayoutEditMode) {
+                View parent = (View) v.getParent();
+                while (parent != null && parent != dpadCluster && parent != abxyCluster && parent != centerCluster) {
+                    if (parent.getParent() instanceof View) {
+                        parent = (View) parent.getParent();
+                    } else {
+                        break;
+                    }
+                }
+                if (parent != null) {
+                    String name = "Controls";
+                    if (parent == dpadCluster) name = "D-Pad";
+                    else if (parent == abxyCluster) name = "ABXY Buttons";
+                    else if (parent == centerCluster) name = "Center Buttons";
+                    return handleEditorGroupTouch(parent, name, event);
+                }
+                return true;
+            }
             if (!authenticated) {
                 return false;
             }
@@ -1256,11 +1370,351 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
+        if (isLayoutEditMode) {
+            saveAndExitLayoutEditMode();
+            return;
+        }
         if (currentTab == Tab.TOUCHPAD || currentTab == Tab.GAMEPAD) {
             switchTab(Tab.CONNECT);
         } else {
             super.onBackPressed();
         }
+    }
+
+    // ==============================================================
+    // GAMEPAD DYNAMIC RESPONSIVE LAYOUT & INTERACTIVE LAYOUT EDITOR
+    // ==============================================================
+
+    private void setupDraggableGroup(View group, String name) {
+        if (group == null) return;
+        group.setOnTouchListener((v, event) -> {
+            if (!isLayoutEditMode) {
+                return false;
+            }
+            return handleEditorGroupTouch(v, name, event);
+        });
+    }
+
+    private boolean handleEditorGroupTouch(View group, String name, MotionEvent event) {
+        if (!isLayoutEditMode || group == null) {
+            return false;
+        }
+        int action = event.getActionMasked();
+        switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                selectControlGroup(group, name);
+                editorTouchStartX = event.getRawX();
+                editorTouchStartY = event.getRawY();
+                editorViewStartX = group.getX();
+                editorViewStartY = group.getY();
+                triggerHaptic();
+                return true;
+
+            case MotionEvent.ACTION_MOVE:
+                float dx = event.getRawX() - editorTouchStartX;
+                float dy = event.getRawY() - editorTouchStartY;
+                float newX = editorViewStartX + dx;
+                float newY = editorViewStartY + dy;
+
+                if (layoutGamepad != null) {
+                    int parentW = layoutGamepad.getWidth();
+                    int parentH = layoutGamepad.getHeight();
+                    float viewW = group.getWidth() * group.getScaleX();
+                    float viewH = group.getHeight() * group.getScaleY();
+                    int topLimit = dpToPx(48);
+
+                    newX = Math.max(0, Math.min(parentW - viewW, newX));
+                    newY = Math.max(topLimit, Math.min(parentH - viewH, newY));
+                }
+
+                group.setX(newX);
+                group.setY(newY);
+                return true;
+
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                return true;
+        }
+        return false;
+    }
+
+    private void selectControlGroup(View group, String name) {
+        if (selectedControlGroup != null && selectedControlGroup != group) {
+            selectedControlGroup.setBackground(getDrawable(R.drawable.bg_editor_unselected));
+        }
+        selectedControlGroup = group;
+        selectedControlName = name;
+        if (group != null) {
+            group.setBackground(getDrawable(R.drawable.bg_editor_selected));
+            int scalePct = Math.round(group.getScaleX() * 100);
+            if (editorTargetLabel != null) {
+                editorTargetLabel.setText("Selected: " + name);
+            }
+            if (editorScaleText != null) {
+                editorScaleText.setText(scalePct + "%");
+            }
+        } else {
+            if (editorTargetLabel != null) {
+                editorTargetLabel.setText("Tap a control to select • Drag to move");
+            }
+            if (editorScaleText != null) {
+                editorScaleText.setText("100%");
+            }
+        }
+    }
+
+    private void adjustSelectedControlScale(float delta) {
+        if (selectedControlGroup == null) {
+            Toast.makeText(this, "Tap a control first to select and resize", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        float current = selectedControlGroup.getScaleX();
+        float next = Math.max(0.60f, Math.min(1.50f, current + delta));
+        selectedControlGroup.setPivotX(0f);
+        selectedControlGroup.setPivotY(0f);
+        selectedControlGroup.setScaleX(next);
+        selectedControlGroup.setScaleY(next);
+        if (editorScaleText != null) {
+            editorScaleText.setText(Math.round(next * 100) + "%");
+        }
+    }
+
+    private void toggleLayoutEditMode() {
+        if (isLayoutEditMode) {
+            saveAndExitLayoutEditMode();
+        } else {
+            enterLayoutEditMode();
+        }
+    }
+
+    private void enterLayoutEditMode() {
+        isLayoutEditMode = true;
+        if (leftStick != null) leftStick.setEditable(true);
+        if (rightStick != null) rightStick.setEditable(true);
+
+        if (editModeOverlay != null) {
+            editModeOverlay.setVisibility(View.VISIBLE);
+        }
+        if (topButtonsBar != null) {
+            topButtonsBar.setVisibility(View.INVISIBLE);
+        }
+
+        View[] groups = { leftStick, dpadCluster, centerCluster, rightStick, abxyCluster };
+        for (View g : groups) {
+            if (g != null) {
+                g.setBackground(getDrawable(R.drawable.bg_editor_unselected));
+            }
+        }
+        selectControlGroup(leftStick, "Left Stick (LS)");
+        Toast.makeText(this, "Edit Mode: Drag any control to reposition • Tap + / − to resize", Toast.LENGTH_LONG).show();
+    }
+
+    private void saveAndExitLayoutEditMode() {
+        isLayoutEditMode = false;
+        if (leftStick != null) leftStick.setEditable(false);
+        if (rightStick != null) rightStick.setEditable(false);
+
+        if (editModeOverlay != null) {
+            editModeOverlay.setVisibility(View.GONE);
+        }
+        if (topButtonsBar != null) {
+            topButtonsBar.setVisibility(View.VISIBLE);
+        }
+
+        View[] groups = { leftStick, dpadCluster, centerCluster, rightStick, abxyCluster };
+        for (View g : groups) {
+            if (g != null) {
+                g.setBackground(null);
+            }
+        }
+        selectedControlGroup = null;
+
+        saveCurrentLayoutToPreferences();
+        Toast.makeText(this, "Gamepad layout saved!", Toast.LENGTH_SHORT).show();
+    }
+
+    private void resetLayoutToDefault() {
+        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .remove(KEY_CUSTOM_LAYOUT)
+                .apply();
+
+        int w = layoutGamepad.getWidth();
+        int h = layoutGamepad.getHeight();
+        if (w <= 0 || h <= 0) {
+            android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+            w = Math.max(dm.widthPixels, dm.heightPixels);
+            h = Math.min(dm.widthPixels, dm.heightPixels);
+        }
+        applyResponsiveLayout(w, h);
+
+        if (selectedControlGroup != null) {
+            int scalePct = Math.round(selectedControlGroup.getScaleX() * 100);
+            if (editorScaleText != null) {
+                editorScaleText.setText(scalePct + "%");
+            }
+        }
+        Toast.makeText(this, "Reset to default responsive layout", Toast.LENGTH_SHORT).show();
+    }
+
+    private void saveCurrentLayoutToPreferences() {
+        if (layoutGamepad == null) return;
+        int pw = layoutGamepad.getWidth();
+        int ph = layoutGamepad.getHeight();
+        if (pw <= 0 || ph <= 0) return;
+
+        try {
+            JSONObject root = new JSONObject();
+            putViewGroupJson(root, "leftStick", leftStick, pw, ph);
+            putViewGroupJson(root, "dpadCluster", dpadCluster, pw, ph);
+            putViewGroupJson(root, "centerCluster", centerCluster, pw, ph);
+            putViewGroupJson(root, "rightStick", rightStick, pw, ph);
+            putViewGroupJson(root, "abxyCluster", abxyCluster, pw, ph);
+
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    .edit()
+                    .putString(KEY_CUSTOM_LAYOUT, root.toString())
+                    .apply();
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void putViewGroupJson(JSONObject root, String key, View v, int pw, int ph) throws Exception {
+        if (v == null) return;
+        JSONObject obj = new JSONObject();
+        obj.put("xPct", (double) (v.getX() / (float) pw));
+        obj.put("yPct", (double) (v.getY() / (float) ph));
+        obj.put("scale", (double) v.getScaleX());
+        root.put(key, obj);
+    }
+
+    private void applyLayoutConfiguration() {
+        if (layoutGamepad == null) return;
+        int w = layoutGamepad.getWidth();
+        int h = layoutGamepad.getHeight();
+        if (w <= 0 || h <= 0) {
+            android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+            w = Math.max(dm.widthPixels, dm.heightPixels);
+            h = Math.min(dm.widthPixels, dm.heightPixels);
+        }
+
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String customJson = prefs.getString(KEY_CUSTOM_LAYOUT, null);
+        if (customJson != null && !customJson.trim().isEmpty()) {
+            if (applyCustomLayout(customJson, w, h)) {
+                return;
+            }
+        }
+        applyResponsiveLayout(w, h);
+    }
+
+    private boolean applyCustomLayout(String jsonStr, int pw, int ph) {
+        try {
+            JSONObject root = new JSONObject(jsonStr);
+            applyViewGroupJson(root, "leftStick", leftStick, pw, ph);
+            applyViewGroupJson(root, "dpadCluster", dpadCluster, pw, ph);
+            applyViewGroupJson(root, "centerCluster", centerCluster, pw, ph);
+            applyViewGroupJson(root, "rightStick", rightStick, pw, ph);
+            applyViewGroupJson(root, "abxyCluster", abxyCluster, pw, ph);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void applyViewGroupJson(JSONObject root, String key, View v, int pw, int ph) {
+        if (v == null || !root.has(key)) return;
+        try {
+            JSONObject obj = root.getJSONObject(key);
+            float x = (float) (obj.optDouble("xPct", 0.0) * pw);
+            float y = (float) (obj.optDouble("yPct", 0.0) * ph);
+            float scale = (float) obj.optDouble("scale", 1.0);
+
+            v.setPivotX(0f);
+            v.setPivotY(0f);
+            v.setScaleX(scale);
+            v.setScaleY(scale);
+            v.setX(x);
+            v.setY(y);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void applyResponsiveLayout(int screenW, int screenH) {
+        if (layoutGamepad == null || screenW <= 0 || screenH <= 0) return;
+
+        int topBarH = topButtonsBar != null && topButtonsBar.getHeight() > 0 
+                ? topButtonsBar.getHeight() 
+                : dpToPx(52);
+        int availH = screenH - topBarH;
+
+        // Baseline landscape reference: 340dp height, 760dp width
+        float scaleH = (float) availH / dpToPx(320);
+        float scaleW = (float) screenW / dpToPx(760);
+        float baseScale = Math.min(scaleH, scaleW);
+        float scale = Math.max(0.68f, Math.min(1.10f, baseScale));
+
+        View[] groups = { leftStick, dpadCluster, centerCluster, rightStick, abxyCluster };
+        for (View g : groups) {
+            if (g != null) {
+                g.setPivotX(0f);
+                g.setPivotY(0f);
+                g.setScaleX(scale);
+                g.setScaleY(scale);
+            }
+        }
+
+        // 1. Left Stick (Top-Left)
+        if (leftStick != null) {
+            float lsX = dpToPx(24) * scale;
+            float lsY = topBarH + (dpToPx(10) * scale);
+            leftStick.setX(lsX);
+            leftStick.setY(lsY);
+        }
+
+        // 2. D-Pad (Bottom-Left, anchored safely above bottom edge to never clip)
+        if (dpadCluster != null) {
+            float dpadW = dpToPx(132) * scale;
+            float dpadH = dpToPx(132) * scale;
+            float dpadX = dpToPx(72) * scale;
+            float dpadY = screenH - dpadH - (dpToPx(10) * scale);
+            dpadCluster.setX(dpadX);
+            dpadCluster.setY(dpadY);
+        }
+
+        // 3. ABXY Cluster (Bottom-Right, anchored safely)
+        float abxyX = 0f;
+        if (abxyCluster != null) {
+            float abxyW = dpToPx(250) * scale;
+            float abxyH = dpToPx(230) * scale;
+            abxyX = screenW - abxyW - (dpToPx(14) * scale);
+            float abxyY = screenH - abxyH - (dpToPx(12) * scale);
+            abxyCluster.setX(abxyX);
+            abxyCluster.setY(abxyY);
+        }
+
+        // 4. Right Stick (To the left of ABXY, anchored to bottom)
+        if (rightStick != null) {
+            float rsW = dpToPx(140) * scale;
+            float rsH = dpToPx(140) * scale;
+            float rsX = (abxyCluster != null ? abxyX : screenW - rsW) - rsW - (dpToPx(14) * scale);
+            float rsY = screenH - rsH - (dpToPx(14) * scale);
+            rightStick.setX(rsX);
+            rightStick.setY(rsY);
+        }
+
+        // 5. Center Cluster (Horizontally centered, top aligned)
+        if (centerCluster != null) {
+            float ccW = dpToPx(150) * scale;
+            float ccX = (screenW - ccW) / 2.0f;
+            float ccY = topBarH + (dpToPx(12) * scale);
+            centerCluster.setX(ccX);
+            centerCluster.setY(ccY);
+        }
+    }
+
+    private int dpToPx(float dp) {
+        return Math.round(dp * getResources().getDisplayMetrics().density);
     }
 
     @Override
