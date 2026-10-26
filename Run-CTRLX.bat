@@ -12,6 +12,13 @@ if exist "C:\Tools\apache-maven-3.9.16\bin\mvn.cmd" (
     set "MVN_CMD=C:\Tools\apache-maven-3.9.16\bin\mvn.cmd"
 )
 cd /d "%~dp0"
+call "%MVN_CMD%" install -DskipTests
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo [!] Build failed with exit code %ERRORLEVEL%.
+    pause
+    exit /b %ERRORLEVEL%
+)
 call "%MVN_CMD%" -pl pc-client javafx:run
 if %ERRORLEVEL% NEQ 0 (
     echo.

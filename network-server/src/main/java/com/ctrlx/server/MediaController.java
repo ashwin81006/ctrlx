@@ -13,6 +13,7 @@ public class MediaController {
     public interface User32Library extends Library {
         User32Library INSTANCE = Native.load("user32", User32Library.class);
         void keybd_event(byte bVk, byte bScan, int dwFlags, Pointer dwExtraInfo);
+        byte MapVirtualKeyA(int uCode, int uMapType);
     }
 
     // Windows Virtual Key codes for multimedia
@@ -44,14 +45,22 @@ public class MediaController {
         }
         byte vk = getVirtualKey(command.toUpperCase().trim());
         if (vk != 0) {
-            sendKey(vk);
+            sendKey(vk, command);
+        } else {
+            System.err.println("[MediaController] Unknown media command: " + command);
         }
     }
 
-    private void sendKey(byte vk) {
+    private void sendKey(byte vk, String cmd) {
         try {
-            User32Library.INSTANCE.keybd_event(vk, (byte) 0, KEYEVENTF_EXTENDEDKEY, null);
-            User32Library.INSTANCE.keybd_event(vk, (byte) 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, null);
+            byte scan = 0;
+            try {
+                scan = (byte) (User32Library.INSTANCE.MapVirtualKeyA(vk & 0xFF, 0) & 0xFF);
+            } catch (Throwable ignored) {
+            }
+            User32Library.INSTANCE.keybd_event(vk, scan, KEYEVENTF_EXTENDEDKEY, null);
+            User32Library.INSTANCE.keybd_event(vk, scan, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, null);
+            System.out.println("[MediaController] Executed: " + cmd + " (VK 0x" + Integer.toHexString(vk & 0xFF) + ", scan 0x" + Integer.toHexString(scan & 0xFF) + ")");
         } catch (Throwable t) {
             System.err.println("MediaController keybd_event failed: " + t.getMessage());
         }

@@ -30,6 +30,7 @@ public class PowerController {
     public synchronized void executeAction(String action) {
         if (action == null) return;
         String cmd = action.toUpperCase().trim();
+        System.out.println("[PowerController] Executing power action: " + cmd);
         switch (cmd) {
             case "LOCK":
                 lock();
@@ -44,7 +45,7 @@ public class PowerController {
                 shutdown();
                 break;
             default:
-                System.err.println("Unknown power action: " + action);
+                System.err.println("[PowerController] Unknown power action: " + action);
                 break;
         }
     }

@@ -14,6 +14,7 @@ import android.os.Vibrator;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
+import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -121,6 +122,8 @@ public class MainActivity extends Activity {
     private Button gamepadRotateBtn;
     private Button gamepadBackBtn;
     private Button gamepadEditBtn;
+    private Button gamepadMediaBtn;
+    private Button gamepadPowerBtn;
     private LinearLayout topButtonsBar;
     private LinearLayout editModeOverlay;
     private TextView editorTargetLabel;
@@ -334,6 +337,8 @@ public class MainActivity extends Activity {
         // Gamepad Clusters & Layout Editor Views
         topButtonsBar = findViewById(R.id.topButtonsBar);
         gamepadEditBtn = findViewById(R.id.gamepadEditBtn);
+        gamepadMediaBtn = findViewById(R.id.gamepadMediaBtn);
+        gamepadPowerBtn = findViewById(R.id.gamepadPowerBtn);
         editModeOverlay = findViewById(R.id.editModeOverlay);
         editorTargetLabel = findViewById(R.id.editorTargetLabel);
         editorScaleText = findViewById(R.id.editorScaleText);
@@ -589,6 +594,20 @@ public class MainActivity extends Activity {
             gamepadEditBtn.setOnClickListener(v -> {
                 triggerHaptic();
                 toggleLayoutEditMode();
+            });
+        }
+
+        if (gamepadMediaBtn != null) {
+            gamepadMediaBtn.setOnClickListener(v -> {
+                triggerHaptic();
+                showMediaControlsDialog();
+            });
+        }
+
+        if (gamepadPowerBtn != null) {
+            gamepadPowerBtn.setOnClickListener(v -> {
+                triggerHaptic();
+                showPowerActionsDialog();
             });
         }
 
@@ -1315,6 +1334,7 @@ public class MainActivity extends Activity {
 
     private void sendMediaCommand(String command) {
         if (!authenticated || out == null || command == null) {
+            Toast.makeText(this, "Connect to PC first to use media controls", Toast.LENGTH_SHORT).show();
             return;
         }
         triggerHaptic();
@@ -1335,6 +1355,7 @@ public class MainActivity extends Activity {
 
     private void sendPowerCommand(String action) {
         if (!authenticated || out == null || action == null) {
+            Toast.makeText(this, "Connect to PC first to use power controls", Toast.LENGTH_SHORT).show();
             return;
         }
         triggerHaptic();
@@ -1351,6 +1372,65 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {
             }
         });
+    }
+
+    private void showMediaControlsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert);
+        builder.setTitle("🎵 Media & Volume Controls");
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(12));
+
+        // Row 1: Playback controls
+        LinearLayout rowPlayback = new LinearLayout(this);
+        rowPlayback.setOrientation(LinearLayout.HORIZONTAL);
+        rowPlayback.setGravity(Gravity.CENTER);
+
+        Button btnPrev = createMediaDialogBtn("⏮ Prev", "#1E293B", "#94A3B8", v -> sendMediaCommand("PREV_TRACK"));
+        Button btnPlay = createMediaDialogBtn("⏯ Play/Pause", "#2563EB", "#FFFFFF", v -> sendMediaCommand("PLAY_PAUSE"));
+        Button btnNext = createMediaDialogBtn("⏭ Next", "#1E293B", "#94A3B8", v -> sendMediaCommand("NEXT_TRACK"));
+
+        rowPlayback.addView(btnPrev);
+        rowPlayback.addView(btnPlay);
+        rowPlayback.addView(btnNext);
+        root.addView(rowPlayback);
+
+        // Row 2: Volume controls
+        LinearLayout rowVolume = new LinearLayout(this);
+        rowVolume.setOrientation(LinearLayout.HORIZONTAL);
+        rowVolume.setGravity(Gravity.CENTER);
+        rowVolume.setPadding(0, dpToPx(12), 0, 0);
+
+        Button btnDown = createMediaDialogBtn("🔉 Vol -", "#1E293B", "#CBD5E1", v -> sendMediaCommand("VOL_DOWN"));
+        Button btnUp = createMediaDialogBtn("🔊 Vol +", "#1E293B", "#CBD5E1", v -> sendMediaCommand("VOL_UP"));
+        Button btnMute = createMediaDialogBtn("🔇 Mute", "#1E293B", "#EF4444", v -> sendMediaCommand("MUTE"));
+
+        rowVolume.addView(btnDown);
+        rowVolume.addView(btnUp);
+        rowVolume.addView(btnMute);
+        root.addView(rowVolume);
+
+        builder.setView(root);
+        builder.setNegativeButton("Close", null);
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    private Button createMediaDialogBtn(String text, String bgColor, String textColor, View.OnClickListener listener) {
+        Button btn = new Button(this);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dpToPx(42), 1f);
+        lp.setMargins(dpToPx(3), 0, dpToPx(3), 0);
+        btn.setLayoutParams(lp);
+        btn.setText(text);
+        btn.setTextSize(12);
+        btn.setTextColor(Color.parseColor(textColor));
+        btn.setBackgroundColor(Color.parseColor(bgColor));
+        btn.setOnClickListener(v -> {
+            triggerHaptic();
+            listener.onClick(v);
+        });
+        return btn;
     }
 
     private void showPowerActionsDialog() {

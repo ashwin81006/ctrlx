@@ -363,7 +363,9 @@ public class Server {
                         continue;
                     }
                     if (message.has("command")) {
-                        mediaController.executeCommand(message.get("command").getAsString());
+                        String cmd = message.get("command").getAsString();
+                        System.out.println("[Server] Received MEDIA_COMMAND: " + cmd);
+                        mediaController.executeCommand(cmd);
                     }
                 } else if ("POWER_COMMAND".equals(type)) {
                     if (!authenticated) {
@@ -373,6 +375,7 @@ public class Server {
                     String action = message.has("action") ? message.get("action").getAsString()
                             : (message.has("command") ? message.get("command").getAsString() : null);
                     if (action != null) {
+                        System.out.println("[Server] Received POWER_COMMAND: " + action);
                         powerController.executeAction(action);
                     }
                 } else if ("GAMEPAD_BUTTON".equals(type)) {
