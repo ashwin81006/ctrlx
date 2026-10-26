@@ -1,6 +1,0 @@
-E:\Sem-5-packages\ctrlx\gamepad-bridge\bin\publish\gamepad-bridge.exe
-E:\Sem-5-packages\ctrlx\gamepad-bridge\bin\publish\gamepad-bridge.dll
-E:\Sem-5-packages\ctrlx\gamepad-bridge\bin\publish\gamepad-bridge.deps.json
-E:\Sem-5-packages\ctrlx\gamepad-bridge\bin\publish\gamepad-bridge.runtimeconfig.json
-E:\Sem-5-packages\ctrlx\gamepad-bridge\bin\publish\gamepad-bridge.pdb
-E:\Sem-5-packages\ctrlx\gamepad-bridge\bin\publish\Nefarius.ViGEm.Client.dll
