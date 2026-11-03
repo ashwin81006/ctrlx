@@ -9,9 +9,34 @@ android {
     defaultConfig {
         applicationId 'com.ctrlx.mobile'
         minSdk 23
-        targetSdk 28
+        targetSdk 34
         versionCode 1
         versionName '1.0'
+    }
+
+    signingConfigs {
+        release {
+            def keystoreFile = file('../ctrlx-release.keystore')
+            if (keystoreFile.exists()) {
+                storeFile keystoreFile
+                storePassword 'ctrlx123'
+                keyAlias 'ctrlx'
+                keyPassword 'ctrlx123'
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
     }
 
     compileOptions {

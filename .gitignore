@@ -12,3 +12,4 @@ server.token
 paired_devices.json
 **/bin/
 **/obj/
+dist/
