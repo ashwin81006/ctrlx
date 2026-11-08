@@ -47,41 +47,38 @@ public class Dashboard extends Application {
 
         // Title Header
         Label title = new Label("CTRLX");
-        title.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: white;");
+        title.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: white; -fx-letter-spacing: 1px;");
 
-        Label subtitle = new Label("PC REMOTE RECEIVER");
-        subtitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #64748b; -fx-letter-spacing: 1px;");
-
-        statusBadge = new Label("● READY FOR CONNECTION");
+        statusBadge = new Label("● Ready");
         statusBadge.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
 
         HBox header = new HBox(
-                new VBox(2, title, subtitle),
+                title,
                 createSpacer(),
                 statusBadge);
         header.setAlignment(Pos.CENTER_LEFT);
 
-        // PC Info & Security Cards (Abstract & clean)
+        // PC Info & Security Cards (Clean, encapsulated)
         String hostName = getHostComputerName();
         String initialPin = Server.pairingManager.getOrCreateActivePin();
 
         // Card 1: PC Identity
-        Label pcTitle = new Label("THIS COMPUTER");
+        Label pcTitle = new Label("THIS PC");
         pcTitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #94a3b8; -fx-letter-spacing: 1px;");
         pcNameLabel = new Label("🖥️  " + hostName);
         pcNameLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #f8fafc;");
-        Label pcSubtitle = new Label("Ready for connection");
-        pcSubtitle.setStyle("-fx-font-size: 12px; -fx-text-fill: #34d399;");
+        Label pcSubtitle = new Label("Discoverable on local Wi-Fi");
+        pcSubtitle.setStyle("-fx-font-size: 12px; -fx-text-fill: #64748b;");
         VBox pcCard = new VBox(6, pcTitle, pcNameLabel, pcSubtitle);
         styleCard(pcCard);
 
         // Card 2: Security PIN
-        Label pinTitle = new Label("PAIRING PIN CODE");
+        Label pinTitle = new Label("PAIRING PIN");
         pinTitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #94a3b8; -fx-letter-spacing: 1px;");
         activePinLabel = new Label(initialPin);
-        activePinLabel.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #a78bfa; -fx-letter-spacing: 3px;");
-        Label pinSubtitle = new Label("Enter this code on your phone");
-        pinSubtitle.setStyle("-fx-font-size: 12px; -fx-text-fill: #94a3b8;");
+        activePinLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #a78bfa; -fx-letter-spacing: 4px;");
+        Label pinSubtitle = new Label("Enter in phone app to connect");
+        pinSubtitle.setStyle("-fx-font-size: 12px; -fx-text-fill: #64748b;");
         VBox pinCard = new VBox(6, pinTitle, activePinLabel, pinSubtitle);
         styleCard(pinCard);
 
@@ -90,12 +87,12 @@ public class Dashboard extends Application {
         HBox.setHgrow(pinCard, Priority.ALWAYS);
 
         // Connected Devices Section
-        Label devSectionTitle = new Label("CONNECTED DEVICES");
-        devSectionTitle.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #64748b; -fx-letter-spacing: 1px;");
+        Label devSectionTitle = new Label("CONNECTED CONTROLLERS");
+        devSectionTitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #64748b; -fx-letter-spacing: 1px;");
 
         devicesContainer = new VBox(8);
-        noDevicesLabel = new Label("No devices connected. Open the CTRLX app on your phone and tap this PC.");
-        noDevicesLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 13px; -fx-padding: 12;");
+        noDevicesLabel = new Label("No devices connected yet. Open CTRLX on your phone to connect.");
+        noDevicesLabel.setStyle("-fx-text-fill: #64748b; -fx-font-size: 13px; -fx-padding: 12;");
         devicesContainer.getChildren().add(noDevicesLabel);
 
         VBox devicesSection = new VBox(10, devSectionTitle, devicesContainer);
@@ -111,11 +108,11 @@ public class Dashboard extends Application {
         root.setPadding(new Insets(24));
         root.setStyle("-fx-background-color: #0b0f19;");
 
-        Scene scene = new Scene(root, 620, 420);
+        Scene scene = new Scene(root, 580, 390);
         stage.setTitle("CTRLX");
         stage.setScene(scene);
-        stage.setMinWidth(520);
-        stage.setMinHeight(360);
+        stage.setMinWidth(480);
+        stage.setMinHeight(340);
         stage.show();
 
         stage.setOnCloseRequest(e -> shutdownAndExit());
@@ -124,15 +121,6 @@ public class Dashboard extends Application {
         new Thread(() -> {
             try {
                 Thread.sleep(500);
-            } catch (InterruptedException ignored) {
-            }
-            Platform.runLater(this::connectToServer);
-        }).start();
-
-        // Connect automatically to local server
-        new Thread(() -> {
-            try {
-                Thread.sleep(600);
             } catch (InterruptedException ignored) {
             }
             Platform.runLater(this::connectToServer);
@@ -226,8 +214,8 @@ public class Dashboard extends Application {
                 }
 
                 Platform.runLater(() -> {
-                    statusBadge.setText("● READY TO CONNECT");
-                    statusBadge.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 12; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
+                    statusBadge.setText("● Ready");
+                    statusBadge.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
                 });
 
                 String message;
@@ -246,8 +234,8 @@ public class Dashboard extends Application {
 
             } catch (Exception e) {
                 Platform.runLater(() -> {
-                    statusBadge.setText("● OFFLINE");
-                    statusBadge.setStyle("-fx-background-color: rgba(239, 68, 68, 0.15); -fx-text-fill: #f87171; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 12; -fx-background-radius: 20;");
+                    statusBadge.setText("● Offline");
+                    statusBadge.setStyle("-fx-background-color: rgba(239, 68, 68, 0.15); -fx-text-fill: #f87171; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20;");
                 });
             } finally {
                 try {
@@ -274,36 +262,40 @@ public class Dashboard extends Application {
 
                 if (devices == null || devices.size() == 0) {
                     devicesContainer.getChildren().add(noDevicesLabel);
-                    statusBadge.setText("● READY TO CONNECT");
-                    statusBadge.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 12; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
+                    statusBadge.setText("● Ready");
+                    statusBadge.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
                     return;
                 }
 
-                statusBadge.setText("● CONNECTED (" + devices.size() + " DEVICE" + (devices.size() > 1 ? "S" : "") + ")");
-                statusBadge.setStyle("-fx-background-color: rgba(56, 189, 248, 0.15); -fx-text-fill: #38bdf8; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 12; -fx-background-radius: 20; -fx-border-color: #0284c7; -fx-border-radius: 20; -fx-border-width: 1;");
+                int count = devices.size();
+                statusBadge.setText("● " + count + " " + (count == 1 ? "Device" : "Devices") + " Connected");
+                statusBadge.setStyle("-fx-background-color: rgba(56, 189, 248, 0.15); -fx-text-fill: #38bdf8; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20; -fx-border-color: #0284c7; -fx-border-radius: 20; -fx-border-width: 1;");
 
                 for (JsonElement el : devices) {
                     JsonObject d = el.getAsJsonObject();
-                    String devId = d.get("deviceId").getAsString();
                     String devName = d.has("deviceName") ? d.get("deviceName").getAsString() : "Mobile Phone";
 
                     int player = d.has("player") ? d.get("player").getAsInt() : 0;
                     Label icon = new Label(player > 0 ? "🎮" : "📱");
                     icon.setStyle("-fx-font-size: 20px;");
 
-                    Label nameLbl = new Label(devName + (player > 0 ? " [Player " + player + "]" : ""));
+                    Label nameLbl = new Label(devName);
                     nameLbl.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #f8fafc;");
 
-                    Label statusLbl = new Label(player > 0 ? "● Gamepad Active (Controller " + player + ")" : "Connected & Active");
-                    statusLbl.setStyle("-fx-font-size: 12px; -fx-text-fill: " + (player > 0 ? "#38bdf8;" : "#34d399;"));
+                    Label badgeLbl = new Label(player > 0 ? "Player " + player : "Touchpad");
+                    badgeLbl.setStyle(player > 0
+                            ? "-fx-background-color: rgba(56, 189, 248, 0.15); -fx-text-fill: #38bdf8; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 2 8; -fx-background-radius: 12;"
+                            : "-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 2 8; -fx-background-radius: 12;");
 
-                    VBox info = new VBox(2, nameLbl, statusLbl);
+                    HBox nameAndBadge = new HBox(8, nameLbl, badgeLbl);
+                    nameAndBadge.setAlignment(Pos.CENTER_LEFT);
 
-                    Button kickBtn = new Button("Disconnect");
-                    kickBtn.setStyle("-fx-background-color: #334155; -fx-text-fill: #f87171; -fx-font-size: 12px; -fx-font-weight: bold; -fx-cursor: hand;");
-                    kickBtn.setOnAction(e -> kickDevice(devId));
+                    Label statusLbl = new Label("● Connected & Active");
+                    statusLbl.setStyle("-fx-font-size: 12px; -fx-text-fill: #64748b;");
 
-                    HBox item = new HBox(12, icon, info, createSpacer(), kickBtn);
+                    VBox info = new VBox(3, nameAndBadge, statusLbl);
+
+                    HBox item = new HBox(12, icon, info);
                     item.setAlignment(Pos.CENTER_LEFT);
                     item.setPadding(new Insets(10, 14, 10, 14));
                     item.setStyle("-fx-background-color: #1e293b; -fx-background-radius: 8;");
@@ -313,14 +305,6 @@ public class Dashboard extends Application {
             });
         } catch (Exception ignored) {
         }
-    }
-
-    private void kickDevice(String deviceId) {
-        new Thread(() -> {
-            if (connected && out != null) {
-                out.println("{\"type\":\"KICK_DEVICE\",\"deviceId\":\"" + deviceId + "\"}");
-            }
-        }).start();
     }
 
     void disconnect() {

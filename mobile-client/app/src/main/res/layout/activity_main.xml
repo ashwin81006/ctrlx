@@ -133,56 +133,38 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:gravity="end|center_vertical"
                 android:paddingBottom="8dp">
 
-                <TextView
-                    android:id="@+id/touchpadPcBadge"
+                <View
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="● Windows PC"
-                    android:textColor="#34D399"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
 
                 <!-- Soft Keyboard Toggle Button -->
                 <Button
                     android:id="@+id/touchpadKeyboardBtn"
                     android:layout_width="wrap_content"
-                    android:layout_height="32dp"
+                    android:layout_height="34dp"
                     android:text="⌨️ Keyboard"
                     android:textColor="#38BDF8"
                     android:textSize="11sp"
-                    android:background="#1E293B"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:layout_marginEnd="6dp" />
+                    android:background="@drawable/btn_gamepad_pill"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:layout_marginEnd="8dp" />
 
                 <!-- Power Actions Button -->
                 <Button
                     android:id="@+id/touchpadPowerBtn"
                     android:layout_width="wrap_content"
-                    android:layout_height="32dp"
+                    android:layout_height="34dp"
                     android:text="⚡ Power"
                     android:textColor="#F59E0B"
                     android:textSize="11sp"
-                    android:background="#1E293B"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp"
-                    android:layout_marginEnd="6dp" />
-
-                <!-- Disconnect Button -->
-                <Button
-                    android:id="@+id/touchpadDisconnectBtn"
-                    android:layout_width="wrap_content"
-                    android:layout_height="32dp"
-                    android:text="Disconnect"
-                    android:textColor="#EF4444"
-                    android:textSize="11sp"
-                    android:background="#1E293B"
-                    android:paddingStart="10dp"
-                    android:paddingEnd="10dp" />
+                    android:background="@drawable/btn_gamepad_pill"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp" />
 
             </LinearLayout>
 
@@ -384,7 +366,7 @@
                     android:visibility="gone" />
 
                 <!-- ================= TOP BUTTONS ROW ================= -->
-                <!-- LT | LB | Guid | RB | RT (Spanning full top width with Monect pills) -->
+                <!-- Back | LB | Edit (Centre) | Guid (Centre) | RB | LT | RT (Extreme Right) -->
                 <LinearLayout
                     android:id="@+id/topButtonsBar"
                     android:layout_width="match_parent"
@@ -408,73 +390,40 @@
                         android:background="@drawable/btn_gamepad_pill"
                         android:layout_marginEnd="6dp" />
 
-                    <!-- Layout Editor Button -->
-                    <Button
-                        android:id="@+id/gamepadEditBtn"
-                        android:layout_width="38dp"
-                        android:layout_height="44dp"
-                        android:text="⚙"
-                        android:textColor="#38BDF8"
-                        android:textSize="18sp"
-                        android:background="@drawable/btn_gamepad_pill"
-                        android:layout_marginEnd="6dp" />
-
-                    <!-- Quick Media Controls Button -->
-                    <Button
-                        android:id="@+id/gamepadMediaBtn"
-                        android:layout_width="38dp"
-                        android:layout_height="44dp"
-                        android:text="🎵"
-                        android:textColor="#38BDF8"
-                        android:textSize="16sp"
-                        android:background="@drawable/btn_gamepad_pill"
-                        android:layout_marginEnd="6dp" />
-
-                    <!-- Quick Power Actions Button -->
-                    <Button
-                        android:id="@+id/gamepadPowerBtn"
-                        android:layout_width="38dp"
-                        android:layout_height="44dp"
-                        android:text="⚡"
-                        android:textColor="#F59E0B"
-                        android:textSize="16sp"
-                        android:background="@drawable/btn_gamepad_pill"
-                        android:layout_marginEnd="8dp" />
-
-                    <!-- Left Trigger LT -->
-                    <Button
-                        android:id="@+id/btnLT"
-                        android:layout_width="0dp"
-                        android:layout_height="44dp"
-                        android:layout_weight="1.2"
-                        android:text="LT"
-                        android:textColor="#E0F2FE"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:background="@drawable/btn_gamepad_pill" />
-
                     <!-- Left Bumper LB -->
                     <Button
                         android:id="@+id/btnLB"
                         android:layout_width="0dp"
                         android:layout_height="44dp"
                         android:layout_weight="1.0"
-                        android:layout_marginStart="8dp"
                         android:text="LB"
                         android:textColor="#E0F2FE"
                         android:textSize="14sp"
                         android:textStyle="bold"
-                        android:background="@drawable/btn_gamepad_pill" />
+                        android:background="@drawable/btn_gamepad_pill"
+                        android:layout_marginEnd="8dp" />
+
+                    <!-- Layout Editor (Modify Icon to the right side of LB in the centre) -->
+                    <Button
+                        android:id="@+id/gamepadEditBtn"
+                        android:layout_width="40dp"
+                        android:layout_height="44dp"
+                        android:text="⚙"
+                        android:textColor="#38BDF8"
+                        android:textSize="18sp"
+                        android:background="@drawable/btn_gamepad_pill"
+                        android:layout_marginEnd="8dp" />
 
                     <!-- Center Spacer -->
                     <View
-                        android:layout_width="20dp"
-                        android:layout_height="1dp" />
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="0.15" />
 
-                    <!-- Guide Button (Monect style Guid) -->
+                    <!-- Guide Button (Monect style Guid in the Center) -->
                     <Button
                         android:id="@+id/btnXboxGuide"
-                        android:layout_width="80dp"
+                        android:layout_width="74dp"
                         android:layout_height="44dp"
                         android:text="Guid"
                         android:textColor="#E0F2FE"
@@ -484,8 +433,9 @@
 
                     <!-- Center Spacer -->
                     <View
-                        android:layout_width="20dp"
-                        android:layout_height="1dp" />
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="0.15" />
 
                     <!-- Right Bumper RB -->
                     <Button
@@ -493,19 +443,32 @@
                         android:layout_width="0dp"
                         android:layout_height="44dp"
                         android:layout_weight="1.0"
-                        android:layout_marginEnd="8dp"
+                        android:layout_marginEnd="6dp"
                         android:text="RB"
                         android:textColor="#E0F2FE"
                         android:textSize="14sp"
                         android:textStyle="bold"
                         android:background="@drawable/btn_gamepad_pill" />
 
-                    <!-- Right Trigger RT -->
+                    <!-- Left Trigger LT (Moved to Right Extreme) -->
+                    <Button
+                        android:id="@+id/btnLT"
+                        android:layout_width="0dp"
+                        android:layout_height="44dp"
+                        android:layout_weight="1.1"
+                        android:layout_marginEnd="6dp"
+                        android:text="LT"
+                        android:textColor="#E0F2FE"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:background="@drawable/btn_gamepad_pill" />
+
+                    <!-- Right Trigger RT (Right Extreme) -->
                     <Button
                         android:id="@+id/btnRT"
                         android:layout_width="0dp"
                         android:layout_height="44dp"
-                        android:layout_weight="1.2"
+                        android:layout_weight="1.1"
                         android:text="RT"
                         android:textColor="#E0F2FE"
                         android:textSize="14sp"
