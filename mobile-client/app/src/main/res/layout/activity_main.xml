@@ -4,6 +4,16 @@
     android:layout_height="match_parent"
     android:background="#0B0F19">
 
+    <!-- Hidden EditText for Soft Keyboard IME across all screens -->
+    <EditText
+        android:id="@+id/hiddenKeyInput"
+        android:layout_width="1dp"
+        android:layout_height="1dp"
+        android:background="@android:color/transparent"
+        android:inputType="textMultiLine|textNoSuggestions"
+        android:imeOptions="flagNoExtractUi|actionSend"
+        android:alpha="0" />
+
     <!-- Main Content Container for the 3 Tab Screens -->
     <FrameLayout
         android:id="@+id/tabContentContainer"
@@ -100,6 +110,72 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical" />
 
+                <!-- Quick Actions Card (Visible when connected) -->
+                <LinearLayout
+                    android:id="@+id/quickActionsCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="#131D31"
+                    android:padding="16dp"
+                    android:layout_marginTop="20dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="QUICK ACTIONS"
+                        android:textColor="#64748B"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.08"
+                        android:layout_marginBottom="12dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:weightSum="3">
+
+                        <!-- Keyboard Action -->
+                        <Button
+                            android:id="@+id/quickKeyboardBtn"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:text="⌨️ Keyboard"
+                            android:textColor="#38BDF8"
+                            android:textSize="12sp"
+                            android:background="@drawable/btn_gamepad_pill"
+                            android:layout_marginEnd="6dp" />
+
+                        <!-- Media Controls Action -->
+                        <Button
+                            android:id="@+id/quickMediaBtn"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:text="🎵 Media"
+                            android:textColor="#A78BFA"
+                            android:textSize="12sp"
+                            android:background="@drawable/btn_gamepad_pill"
+                            android:layout_marginEnd="6dp" />
+
+                        <!-- Power Actions -->
+                        <Button
+                            android:id="@+id/quickPowerBtn"
+                            android:layout_width="0dp"
+                            android:layout_height="44dp"
+                            android:layout_weight="1"
+                            android:text="⚡ Power"
+                            android:textColor="#F59E0B"
+                            android:textSize="12sp"
+                            android:background="@drawable/btn_gamepad_pill" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
             </LinearLayout>
 
         </ScrollView>
@@ -108,7 +184,7 @@
 
 
         <!-- ============================================== -->
-        <!-- TAB 3: TOUCHPAD CONTROLLER (Monect style)     -->
+        <!-- TAB 2: TOUCHPAD CONTROLLER (Monect style)     -->
         <!-- ============================================== -->
         <LinearLayout
             android:id="@+id/layoutTouchpad"
@@ -117,56 +193,6 @@
             android:orientation="vertical"
             android:padding="14dp"
             android:visibility="gone">
-
-            <!-- Hidden EditText for Soft Keyboard IME -->
-            <EditText
-                android:id="@+id/hiddenKeyInput"
-                android:layout_width="1dp"
-                android:layout_height="1dp"
-                android:background="@android:color/transparent"
-                android:inputType="textMultiLine|textNoSuggestions"
-                android:imeOptions="flagNoExtractUi|actionSend"
-                android:alpha="0" />
-
-            <!-- Top Action Bar -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="end|center_vertical"
-                android:paddingBottom="8dp">
-
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="1dp"
-                    android:layout_weight="1" />
-
-                <!-- Soft Keyboard Toggle Button -->
-                <Button
-                    android:id="@+id/touchpadKeyboardBtn"
-                    android:layout_width="wrap_content"
-                    android:layout_height="34dp"
-                    android:text="⌨️ Keyboard"
-                    android:textColor="#38BDF8"
-                    android:textSize="11sp"
-                    android:background="@drawable/btn_gamepad_pill"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="14dp"
-                    android:layout_marginEnd="8dp" />
-
-                <!-- Power Actions Button -->
-                <Button
-                    android:id="@+id/touchpadPowerBtn"
-                    android:layout_width="wrap_content"
-                    android:layout_height="34dp"
-                    android:text="⚡ Power"
-                    android:textColor="#F59E0B"
-                    android:textSize="11sp"
-                    android:background="@drawable/btn_gamepad_pill"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="14dp" />
-
-            </LinearLayout>
 
             <!-- Touchpad Surface -->
             <FrameLayout

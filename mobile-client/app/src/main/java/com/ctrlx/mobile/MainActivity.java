@@ -104,14 +104,10 @@ public class MainActivity extends Activity {
 
     // Soft Keyboard, Media & Power Views
     private EditText hiddenKeyInput;
-    private Button touchpadKeyboardBtn;
-    private Button touchpadPowerBtn;
-    private Button btnMediaPrev;
-    private Button btnMediaPlayPause;
-    private Button btnMediaNext;
-    private Button btnMediaVolDown;
-    private Button btnMediaVolUp;
-    private Button btnMediaMute;
+    private View quickActionsCard;
+    private Button quickKeyboardBtn;
+    private Button quickMediaBtn;
+    private Button quickPowerBtn;
     private boolean isUpdatingKeyInput = false;
 
     // Gamepad Views
@@ -286,14 +282,10 @@ public class MainActivity extends Activity {
 
         // Soft Keyboard, Media & Power Views
         hiddenKeyInput = findViewById(R.id.hiddenKeyInput);
-        touchpadKeyboardBtn = findViewById(R.id.touchpadKeyboardBtn);
-        touchpadPowerBtn = findViewById(R.id.touchpadPowerBtn);
-        btnMediaPrev = findViewById(R.id.btnMediaPrev);
-        btnMediaPlayPause = findViewById(R.id.btnMediaPlayPause);
-        btnMediaNext = findViewById(R.id.btnMediaNext);
-        btnMediaVolDown = findViewById(R.id.btnMediaVolDown);
-        btnMediaVolUp = findViewById(R.id.btnMediaVolUp);
-        btnMediaMute = findViewById(R.id.btnMediaMute);
+        quickActionsCard = findViewById(R.id.quickActionsCard);
+        quickKeyboardBtn = findViewById(R.id.quickKeyboardBtn);
+        quickMediaBtn = findViewById(R.id.quickMediaBtn);
+        quickPowerBtn = findViewById(R.id.quickPowerBtn);
 
         // Gamepad Views
         gamepadPcBadge = findViewById(R.id.gamepadPcBadge);
@@ -493,38 +485,25 @@ public class MainActivity extends Activity {
             });
         }
 
-        if (touchpadKeyboardBtn != null) {
-            touchpadKeyboardBtn.setOnClickListener(v -> {
+        if (quickKeyboardBtn != null) {
+            quickKeyboardBtn.setOnClickListener(v -> {
                 triggerHaptic();
                 toggleSoftKeyboard();
             });
         }
 
-        if (touchpadPowerBtn != null) {
-            touchpadPowerBtn.setOnClickListener(v -> {
+        if (quickMediaBtn != null) {
+            quickMediaBtn.setOnClickListener(v -> {
                 triggerHaptic();
-                showPowerActionsDialog();
+                showMediaControlsDialog();
             });
         }
 
-        // Media Controls listeners
-        if (btnMediaPrev != null) {
-            btnMediaPrev.setOnClickListener(v -> sendMediaCommand("PREV_TRACK"));
-        }
-        if (btnMediaPlayPause != null) {
-            btnMediaPlayPause.setOnClickListener(v -> sendMediaCommand("PLAY_PAUSE"));
-        }
-        if (btnMediaNext != null) {
-            btnMediaNext.setOnClickListener(v -> sendMediaCommand("NEXT_TRACK"));
-        }
-        if (btnMediaVolDown != null) {
-            btnMediaVolDown.setOnClickListener(v -> sendMediaCommand("VOL_DOWN"));
-        }
-        if (btnMediaVolUp != null) {
-            btnMediaVolUp.setOnClickListener(v -> sendMediaCommand("VOL_UP"));
-        }
-        if (btnMediaMute != null) {
-            btnMediaMute.setOnClickListener(v -> sendMediaCommand("MUTE"));
+        if (quickPowerBtn != null) {
+            quickPowerBtn.setOnClickListener(v -> {
+                triggerHaptic();
+                showPowerActionsDialog();
+            });
         }
 
         // Gamepad Action Buttons (Tactile multi-touch hold & release)
@@ -655,7 +634,7 @@ public class MainActivity extends Activity {
                 boolean isThisConnecting = connecting && ip.equals(targetPcIp);
 
                 if (isThisConnected) {
-                    cardPcStatus.setText("Connected • Choose Touchpad or Gamepad below");
+                    cardPcStatus.setText("Connected");
                     cardPcStatus.setTextColor(Color.parseColor("#34D399"));
                     cardConnectBtn.setText("DISCONNECT");
                     cardConnectBtn.setTextColor(Color.parseColor("#EF4444"));
@@ -680,6 +659,10 @@ public class MainActivity extends Activity {
                 }
 
                 discoveredPcList.addView(card);
+            }
+
+            if (quickActionsCard != null) {
+                quickActionsCard.setVisibility(connected && authenticated ? View.VISIBLE : View.GONE);
             }
         });
     }
@@ -1343,6 +1326,65 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {
             }
         });
+    }
+
+    private void showMediaControlsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert);
+        builder.setTitle("🎵 Media & Volume Controls");
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(12));
+
+        // Row 1: Playback controls
+        LinearLayout rowPlayback = new LinearLayout(this);
+        rowPlayback.setOrientation(LinearLayout.HORIZONTAL);
+        rowPlayback.setGravity(Gravity.CENTER);
+
+        Button btnPrev = createMediaDialogBtn("⏮ Prev", "#1E293B", "#94A3B8", v -> sendMediaCommand("PREV_TRACK"));
+        Button btnPlay = createMediaDialogBtn("⏯ Play/Pause", "#2563EB", "#FFFFFF", v -> sendMediaCommand("PLAY_PAUSE"));
+        Button btnNext = createMediaDialogBtn("⏭ Next", "#1E293B", "#94A3B8", v -> sendMediaCommand("NEXT_TRACK"));
+
+        rowPlayback.addView(btnPrev);
+        rowPlayback.addView(btnPlay);
+        rowPlayback.addView(btnNext);
+        root.addView(rowPlayback);
+
+        // Row 2: Volume controls
+        LinearLayout rowVolume = new LinearLayout(this);
+        rowVolume.setOrientation(LinearLayout.HORIZONTAL);
+        rowVolume.setGravity(Gravity.CENTER);
+        rowVolume.setPadding(0, dpToPx(12), 0, 0);
+
+        Button btnDown = createMediaDialogBtn("🔉 Vol -", "#1E293B", "#CBD5E1", v -> sendMediaCommand("VOL_DOWN"));
+        Button btnUp = createMediaDialogBtn("🔊 Vol +", "#1E293B", "#CBD5E1", v -> sendMediaCommand("VOL_UP"));
+        Button btnMute = createMediaDialogBtn("🔇 Mute", "#1E293B", "#EF4444", v -> sendMediaCommand("MUTE"));
+
+        rowVolume.addView(btnDown);
+        rowVolume.addView(btnUp);
+        rowVolume.addView(btnMute);
+        root.addView(rowVolume);
+
+        builder.setView(root);
+        builder.setNegativeButton("Close", null);
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    private Button createMediaDialogBtn(String text, String bgColor, String textColor, View.OnClickListener listener) {
+        Button btn = new Button(this);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dpToPx(42), 1f);
+        lp.setMargins(dpToPx(3), 0, dpToPx(3), 0);
+        btn.setLayoutParams(lp);
+        btn.setText(text);
+        btn.setTextSize(12);
+        btn.setTextColor(Color.parseColor(textColor));
+        btn.setBackgroundColor(Color.parseColor(bgColor));
+        btn.setOnClickListener(v -> {
+            triggerHaptic();
+            listener.onClick(v);
+        });
+        return btn;
     }
 
     private void showPowerActionsDialog() {
