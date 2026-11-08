@@ -32,7 +32,9 @@ public class MediaController {
 
     public MediaController() {
         try {
-            User32Library lib = User32Library.INSTANCE;
+            if (User32Library.INSTANCE == null) {
+                available = false;
+            }
         } catch (Throwable t) {
             System.err.println("Notice: Windows User32 media controller unavailable: " + t.getMessage());
             available = false;

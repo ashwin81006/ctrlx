@@ -21,7 +21,9 @@ public class PowerController {
 
     public PowerController() {
         try {
-            User32Library lib = User32Library.INSTANCE;
+            if (User32Library.INSTANCE == null) {
+                user32Available = false;
+            }
         } catch (Throwable t) {
             user32Available = false;
         }

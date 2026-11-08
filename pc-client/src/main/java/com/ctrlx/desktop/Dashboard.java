@@ -30,8 +30,6 @@ import java.util.regex.Pattern;
 
 public class Dashboard extends Application {
     private Socket socket;
-    private PrintWriter out;
-    private volatile boolean connected;
     private Label statusBadge;
     private Label pcNameLabel;
     private Label activePinLabel;
@@ -208,8 +206,6 @@ public class Dashboard extends Application {
                 }
 
                 socket = newSocket;
-                out = writer;
-                connected = true;
 
                 String adminToken = findAdminToken();
                 if (adminToken != null) {
@@ -250,8 +246,6 @@ public class Dashboard extends Application {
 
                 if (socket == newSocket) {
                     socket = null;
-                    out = null;
-                    connected = false;
                 }
             }
         }).start();
@@ -303,10 +297,8 @@ public class Dashboard extends Application {
     }
 
     void disconnect() {
-        connected = false;
         Socket current = socket;
         socket = null;
-        out = null;
         if (current != null) {
             try {
                 current.close();
