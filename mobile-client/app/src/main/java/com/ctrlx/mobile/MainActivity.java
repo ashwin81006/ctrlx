@@ -1341,9 +1341,9 @@ public class MainActivity extends Activity {
         rowPlayback.setOrientation(LinearLayout.HORIZONTAL);
         rowPlayback.setGravity(Gravity.CENTER);
 
-        Button btnPrev = createMediaDialogBtn("⏮ Prev", "#1E293B", "#94A3B8", v -> sendMediaCommand("PREV_TRACK"));
-        Button btnPlay = createMediaDialogBtn("⏯ Play/Pause", "#2563EB", "#FFFFFF", v -> sendMediaCommand("PLAY_PAUSE"));
-        Button btnNext = createMediaDialogBtn("⏭ Next", "#1E293B", "#94A3B8", v -> sendMediaCommand("NEXT_TRACK"));
+        Button btnPrev = createMediaDialogBtn("⏮ Prev", "#94A3B8", 1.0f, v -> sendMediaCommand("PREV_TRACK"));
+        Button btnPlay = createMediaDialogBtn("⏯ Play/Pause", "#38BDF8", 1.35f, v -> sendMediaCommand("PLAY_PAUSE"));
+        Button btnNext = createMediaDialogBtn("⏭ Next", "#94A3B8", 1.0f, v -> sendMediaCommand("NEXT_TRACK"));
 
         rowPlayback.addView(btnPrev);
         rowPlayback.addView(btnPlay);
@@ -1354,11 +1354,11 @@ public class MainActivity extends Activity {
         LinearLayout rowVolume = new LinearLayout(this);
         rowVolume.setOrientation(LinearLayout.HORIZONTAL);
         rowVolume.setGravity(Gravity.CENTER);
-        rowVolume.setPadding(0, dpToPx(12), 0, 0);
+        rowVolume.setPadding(0, dpToPx(10), 0, 0);
 
-        Button btnDown = createMediaDialogBtn("🔉 Vol -", "#1E293B", "#CBD5E1", v -> sendMediaCommand("VOL_DOWN"));
-        Button btnUp = createMediaDialogBtn("🔊 Vol +", "#1E293B", "#CBD5E1", v -> sendMediaCommand("VOL_UP"));
-        Button btnMute = createMediaDialogBtn("🔇 Mute", "#1E293B", "#EF4444", v -> sendMediaCommand("MUTE"));
+        Button btnDown = createMediaDialogBtn("🔉 Vol -", "#CBD5E1", 1.0f, v -> sendMediaCommand("VOL_DOWN"));
+        Button btnUp = createMediaDialogBtn("🔊 Vol +", "#CBD5E1", 1.0f, v -> sendMediaCommand("VOL_UP"));
+        Button btnMute = createMediaDialogBtn("🔇 Mute", "#EF4444", 1.0f, v -> sendMediaCommand("MUTE"));
 
         rowVolume.addView(btnDown);
         rowVolume.addView(btnUp);
@@ -1371,15 +1371,19 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
-    private Button createMediaDialogBtn(String text, String bgColor, String textColor, View.OnClickListener listener) {
+    private Button createMediaDialogBtn(String text, String textColor, float weight, View.OnClickListener listener) {
         Button btn = new Button(this);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dpToPx(42), 1f);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dpToPx(44), weight);
         lp.setMargins(dpToPx(3), 0, dpToPx(3), 0);
         btn.setLayoutParams(lp);
         btn.setText(text);
-        btn.setTextSize(12);
+        btn.setTextSize(11);
+        btn.setSingleLine(true);
+        btn.setMaxLines(1);
+        btn.setAllCaps(false);
+        btn.setPadding(dpToPx(4), 0, dpToPx(4), 0);
         btn.setTextColor(Color.parseColor(textColor));
-        btn.setBackgroundColor(Color.parseColor(bgColor));
+        btn.setBackgroundResource(R.drawable.btn_gamepad_pill);
         btn.setOnClickListener(v -> {
             triggerHaptic();
             listener.onClick(v);
