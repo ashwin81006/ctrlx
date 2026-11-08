@@ -760,8 +760,6 @@ public class MainActivity extends Activity {
                 if (lastPcName != null && !lastPcName.isEmpty()) {
                     mDnsQueries.add(lastPcName + ".local");
                 }
-                mDnsQueries.add("Ashy-Victus.local");
-                mDnsQueries.add("windows-pc.local");
 
                 for (String hostQuery : mDnsQueries) {
                     try {
