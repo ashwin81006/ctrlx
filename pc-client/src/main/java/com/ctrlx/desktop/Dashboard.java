@@ -10,7 +10,6 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -40,7 +39,6 @@ public class Dashboard extends Application {
     private VBox devicesContainer;
     private Label noDevicesLabel;
 
-
     @Override
     public void start(Stage stage) {
         startEmbeddedServerIfNeeded();
@@ -50,7 +48,8 @@ public class Dashboard extends Application {
         title.setStyle("-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: white; -fx-letter-spacing: 1px;");
 
         statusBadge = new Label("● Ready");
-        statusBadge.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
+        statusBadge.setStyle(
+                "-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
 
         HBox header = new HBox(
                 title,
@@ -64,7 +63,8 @@ public class Dashboard extends Application {
 
         // Card 1: PC Identity
         Label pcTitle = new Label("THIS PC");
-        pcTitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #94a3b8; -fx-letter-spacing: 1px;");
+        pcTitle.setStyle(
+                "-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #94a3b8; -fx-letter-spacing: 1px;");
         pcNameLabel = new Label("🖥️  " + hostName);
         pcNameLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #f8fafc;");
         Label pcSubtitle = new Label("Discoverable on local Wi-Fi");
@@ -74,9 +74,11 @@ public class Dashboard extends Application {
 
         // Card 2: Security PIN
         Label pinTitle = new Label("PAIRING PIN");
-        pinTitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #94a3b8; -fx-letter-spacing: 1px;");
+        pinTitle.setStyle(
+                "-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #94a3b8; -fx-letter-spacing: 1px;");
         activePinLabel = new Label(initialPin);
-        activePinLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #a78bfa; -fx-letter-spacing: 4px;");
+        activePinLabel.setStyle(
+                "-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #a78bfa; -fx-letter-spacing: 4px;");
         Label pinSubtitle = new Label("Enter in phone app to connect");
         pinSubtitle.setStyle("-fx-font-size: 12px; -fx-text-fill: #64748b;");
         VBox pinCard = new VBox(6, pinTitle, activePinLabel, pinSubtitle);
@@ -87,8 +89,9 @@ public class Dashboard extends Application {
         HBox.setHgrow(pinCard, Priority.ALWAYS);
 
         // Connected Devices Section
-        Label devSectionTitle = new Label("CONNECTED CONTROLLERS");
-        devSectionTitle.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #64748b; -fx-letter-spacing: 1px;");
+        Label devSectionTitle = new Label("CONNECTED DEVICES");
+        devSectionTitle.setStyle(
+                "-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #64748b; -fx-letter-spacing: 1px;");
 
         devicesContainer = new VBox(8);
         noDevicesLabel = new Label("No devices connected yet. Open CTRLX on your phone to connect.");
@@ -129,7 +132,8 @@ public class Dashboard extends Application {
 
     private void styleCard(VBox box) {
         box.setPadding(new Insets(14));
-        box.setStyle("-fx-background-color: #131d31; -fx-background-radius: 10; -fx-border-color: #1e293b; -fx-border-radius: 10; -fx-border-width: 1;");
+        box.setStyle(
+                "-fx-background-color: #131d31; -fx-background-radius: 10; -fx-border-color: #1e293b; -fx-border-radius: 10; -fx-border-width: 1;");
     }
 
     private javafx.scene.Node createSpacer() {
@@ -179,7 +183,6 @@ public class Dashboard extends Application {
         }
     }
 
-
     void connectToServer() {
         new Thread(() -> {
             Socket newSocket = new Socket();
@@ -215,7 +218,8 @@ public class Dashboard extends Application {
 
                 Platform.runLater(() -> {
                     statusBadge.setText("● Ready");
-                    statusBadge.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
+                    statusBadge.setStyle(
+                            "-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
                 });
 
                 String message;
@@ -235,7 +239,8 @@ public class Dashboard extends Application {
             } catch (Exception e) {
                 Platform.runLater(() -> {
                     statusBadge.setText("● Offline");
-                    statusBadge.setStyle("-fx-background-color: rgba(239, 68, 68, 0.15); -fx-text-fill: #f87171; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20;");
+                    statusBadge.setStyle(
+                            "-fx-background-color: rgba(239, 68, 68, 0.15); -fx-text-fill: #f87171; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20;");
                 });
             } finally {
                 try {
@@ -263,39 +268,29 @@ public class Dashboard extends Application {
                 if (devices == null || devices.size() == 0) {
                     devicesContainer.getChildren().add(noDevicesLabel);
                     statusBadge.setText("● Ready");
-                    statusBadge.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
+                    statusBadge.setStyle(
+                            "-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20; -fx-border-color: #059669; -fx-border-radius: 20; -fx-border-width: 1;");
                     return;
                 }
 
                 int count = devices.size();
                 statusBadge.setText("● " + count + " " + (count == 1 ? "Device" : "Devices") + " Connected");
-                statusBadge.setStyle("-fx-background-color: rgba(56, 189, 248, 0.15); -fx-text-fill: #38bdf8; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20; -fx-border-color: #0284c7; -fx-border-radius: 20; -fx-border-width: 1;");
+                statusBadge.setStyle(
+                        "-fx-background-color: rgba(56, 189, 248, 0.15); -fx-text-fill: #38bdf8; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 6 14; -fx-background-radius: 20; -fx-border-color: #0284c7; -fx-border-radius: 20; -fx-border-width: 1;");
 
                 for (JsonElement el : devices) {
                     JsonObject d = el.getAsJsonObject();
-                    String devName = d.has("deviceName") ? d.get("deviceName").getAsString() : "Mobile Phone";
-
-                    int player = d.has("player") ? d.get("player").getAsInt() : 0;
-                    Label icon = new Label(player > 0 ? "🎮" : "📱");
-                    icon.setStyle("-fx-font-size: 20px;");
+                    String devName = d.has("deviceName") ? d.get("deviceName").getAsString() : "Mobile Device";
 
                     Label nameLbl = new Label(devName);
                     nameLbl.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #f8fafc;");
 
-                    Label badgeLbl = new Label(player > 0 ? "Player " + player : "Touchpad");
-                    badgeLbl.setStyle(player > 0
-                            ? "-fx-background-color: rgba(56, 189, 248, 0.15); -fx-text-fill: #38bdf8; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 2 8; -fx-background-radius: 12;"
-                            : "-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #34d399; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 2 8; -fx-background-radius: 12;");
+                    Label statusLbl = new Label("● Connected");
+                    statusLbl.setStyle("-fx-font-size: 12px; -fx-text-fill: #34d399;");
 
-                    HBox nameAndBadge = new HBox(8, nameLbl, badgeLbl);
-                    nameAndBadge.setAlignment(Pos.CENTER_LEFT);
+                    VBox info = new VBox(2, nameLbl, statusLbl);
 
-                    Label statusLbl = new Label("● Connected & Active");
-                    statusLbl.setStyle("-fx-font-size: 12px; -fx-text-fill: #64748b;");
-
-                    VBox info = new VBox(3, nameAndBadge, statusLbl);
-
-                    HBox item = new HBox(12, icon, info);
+                    HBox item = new HBox(info);
                     item.setAlignment(Pos.CENTER_LEFT);
                     item.setPadding(new Insets(10, 14, 10, 14));
                     item.setStyle("-fx-background-color: #1e293b; -fx-background-radius: 8;");
@@ -338,9 +333,9 @@ public class Dashboard extends Application {
 
     private String findAdminToken() {
         File[] candidates = new File[] {
-            new File("server.token"),
-            new File("../network-server/server.token"),
-            new File(System.getProperty("user.home"), ".ctrlx/server.token")
+                new File("server.token"),
+                new File("../network-server/server.token"),
+                new File(System.getProperty("user.home"), ".ctrlx/server.token")
         };
         for (File f : candidates) {
             if (f.exists()) {

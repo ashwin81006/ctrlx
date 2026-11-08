@@ -39,7 +39,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Wireless Controller &amp; Touchpad"
+                    android:text="PC Remote"
                     android:textColor="#94A3B8"
                     android:textSize="13sp"
                     android:layout_marginTop="2dp" />
@@ -366,7 +366,7 @@
                     android:visibility="gone" />
 
                 <!-- ================= TOP BUTTONS ROW ================= -->
-                <!-- Back | LB | Edit (Centre) | Guid (Centre) | RB | LT | RT (Extreme Right) -->
+                <!-- Order: Back | LT | LB | Modify (⚙) | Guid | RB | RT -->
                 <LinearLayout
                     android:id="@+id/topButtonsBar"
                     android:layout_width="match_parent"
@@ -379,7 +379,7 @@
                     android:paddingTop="4dp"
                     android:paddingBottom="2dp">
 
-                    <!-- Subtle Exit/Back Button -->
+                    <!-- Back Button -->
                     <Button
                         android:id="@+id/gamepadBackBtn"
                         android:layout_width="38dp"
@@ -387,6 +387,19 @@
                         android:text="‹"
                         android:textColor="#38BDF8"
                         android:textSize="20sp"
+                        android:background="@drawable/btn_gamepad_pill"
+                        android:layout_marginEnd="6dp" />
+
+                    <!-- Left Trigger LT -->
+                    <Button
+                        android:id="@+id/btnLT"
+                        android:layout_width="0dp"
+                        android:layout_height="44dp"
+                        android:layout_weight="1.0"
+                        android:text="LT"
+                        android:textColor="#E0F2FE"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
                         android:background="@drawable/btn_gamepad_pill"
                         android:layout_marginEnd="6dp" />
 
@@ -401,26 +414,26 @@
                         android:textSize="14sp"
                         android:textStyle="bold"
                         android:background="@drawable/btn_gamepad_pill"
-                        android:layout_marginEnd="8dp" />
+                        android:layout_marginEnd="6dp" />
 
-                    <!-- Layout Editor (Modify Icon to the right side of LB in the centre) -->
+                    <!-- Modify Icon (⚙) -->
                     <Button
                         android:id="@+id/gamepadEditBtn"
-                        android:layout_width="40dp"
+                        android:layout_width="38dp"
                         android:layout_height="44dp"
                         android:text="⚙"
                         android:textColor="#38BDF8"
                         android:textSize="18sp"
                         android:background="@drawable/btn_gamepad_pill"
-                        android:layout_marginEnd="8dp" />
+                        android:layout_marginEnd="6dp" />
 
                     <!-- Center Spacer -->
                     <View
                         android:layout_width="0dp"
                         android:layout_height="1dp"
-                        android:layout_weight="0.15" />
+                        android:layout_weight="0.1" />
 
-                    <!-- Guide Button (Monect style Guid in the Center) -->
+                    <!-- Guide Button (Monect style Guid) -->
                     <Button
                         android:id="@+id/btnXboxGuide"
                         android:layout_width="74dp"
@@ -435,7 +448,7 @@
                     <View
                         android:layout_width="0dp"
                         android:layout_height="1dp"
-                        android:layout_weight="0.15" />
+                        android:layout_weight="0.1" />
 
                     <!-- Right Bumper RB -->
                     <Button
@@ -450,25 +463,12 @@
                         android:textStyle="bold"
                         android:background="@drawable/btn_gamepad_pill" />
 
-                    <!-- Left Trigger LT (Moved to Right Extreme) -->
-                    <Button
-                        android:id="@+id/btnLT"
-                        android:layout_width="0dp"
-                        android:layout_height="44dp"
-                        android:layout_weight="1.1"
-                        android:layout_marginEnd="6dp"
-                        android:text="LT"
-                        android:textColor="#E0F2FE"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:background="@drawable/btn_gamepad_pill" />
-
-                    <!-- Right Trigger RT (Right Extreme) -->
+                    <!-- Right Trigger RT -->
                     <Button
                         android:id="@+id/btnRT"
                         android:layout_width="0dp"
                         android:layout_height="44dp"
-                        android:layout_weight="1.1"
+                        android:layout_weight="1.0"
                         android:text="RT"
                         android:textColor="#E0F2FE"
                         android:textSize="14sp"

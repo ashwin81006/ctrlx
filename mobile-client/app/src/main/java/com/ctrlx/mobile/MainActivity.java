@@ -1023,7 +1023,7 @@ public class MainActivity extends Activity {
 
     private void onConnectionSuccess(String host, String hostName) {
         targetPcIp = host;
-        scanStatusText.setText("Connected to " + hostName + "!\nSelect Touchpad or Gamepad below.");
+        scanStatusText.setText("Connected to " + hostName);
         scanStatusText.setTextColor(Color.parseColor("#34D399"));
         gamepadPcBadge.setText("🎮 " + hostName);
         updateDiscoveredPcCards();
